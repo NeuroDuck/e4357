@@ -86,26 +86,150 @@ Referring to the checked-in "setGPIO-function_disassembly.png", skip down to the
 
     LPC_GPIO0->FIOPIN &= ~pinMask;
 
-Even when compiled with -O0, I find the resulting Machine Code to be very difficult to understand.
+First let's explain the various operations that are going on in this line of code, starting with using:
 
-Referring to the User's Manual Section 34.2.4.2.1, etc., I see:
+    arm-none-eabi-gcc -E -g -O0 -I$MBED_DIR -I$CMSIS_DIR \
+        -mcpu=cortex-m3 -mthumb -c gpio.c > gpio.E
 
-    ldr{notype}{nocondition} r3, [pc, #20] # PC-relative immediate offset addressing,
-					   # i.e., the pinMask variable.
+which expands the above line of C-code to:
 
-    The b4-ba ldr's are doing the LPC_GPIO0->FIOPIN indirection, which consists of:
+    ((LPC_GPIO_TypeDef *) ((0x2009C000UL) + 0x0) )->FIODIR &= ~dirMask;
 
-    LPC_GPIO0 = LPC_GPIO_BASE(2009c0000) + FIOPIN (= 20 = +4(FIODIR) +12(RESERVED) +4(FIOMASK))
+So the above line of code actually consists of:
 
-so apparently pc contains LPC_GPIO_BASE(2009c0000), and the current value stores at address 
-LPC_GPIO_BASE(2009c0000) + FIOPIN is stored into r3, where the result will be stored in line c0:.
+1. Add an absolute address to two byte offsets and store the sum in a Register:
 
-Then r2 is loaded with the value of pinMask, which is loaded from the address [r7, #12].
+     0x2009C000 + 0x0(= the byte offset to the first GPIO Port) + 
+	FIODIR(= byte offset in the LPC_GPIO struct)
 
-Next mvns = move NOT and update condition flags, basically setting the flags according to value stored in r2.
+2. Load the value at the address created by this sum. 
 
-next ands = logical AND of r1 and r2, setting the condition flags accordingly.
+3. Compute the logical NOT of the value in the dirMask variable.
 
-Finally str = store the r2 AND result in [r3, #20], which contains LPC_GPIO_BASE(2009c0000) + FIOPIN.
+4. Logical OR the value from #3 with the value from #2.
 
-There are some parts I'm missing here, i.e., how register mapping copies the register contents above in/out of 0x2009c0000+20.
+5. Store the value from #4 back into the address from #1.
+
+It's not shown in the .png file above, but at address "cc:", I see:
+
+    cc: 2009c000	.word 0x2009c000
+
+so we can see that the LPC_GPIO_BASE value is stored in address "cc:".  
+
+With 1-5 above in mind, let's look at the Assembly Language Instructions starting address "b4:" in the .png file above that implement this line of C-code:
+
+    LPC_GPIO0->FIOPIN &= ~pinMask;
+
+Referring to the User's Manual Section 34.2.4.2.1, etc., I speculate that these lines:
+
+    b4: 4b05 ldr r3, [pc, #20]
+    b6: 4a05 ldr r2, [pc, #20]
+    b8: 6951 ldr r1, [r2, #20]
+    ba: 68fa ldr r2, [r7, #12]
+
+are doing the address+offset addition, and the fetching of the value at that location into a Register, and the fetching of the value of pinMask into another register.
+
+Next we have:
+
+    bc: 43d2 mvns r2, r2
+
+which copies the bitwise NOT (it's doing the "~") of r2 back into r2, updating the conditional flags accordingly.
+
+Next we have:
+
+    be: 400a ands r2, r1
+
+which does the "&=" part of the C-code line.
+
+Finally we have:
+
+    c0: 615a str r2, [r3, #20]
+
+Which stores the AND'ed value back into the address pointed to by the value stored in r3, plus #20.
+There are some parts I'm missing here, i.e., how register mapping copies the register contents above in/out of 0x2009c0000.
+
+As for the bitfield values/meanings for the above Assembly Language Instructions, I refer to pg. 2 here:
+
+   https://ece.uwaterloo.ca/~ece222/ARM/ARM7-TDMI-manual-pt3.pdf
+
+from which we can decode as follows:
+
+    b4: 4b05 ldr r3, [pc, #20]
+
+0x4bxx matches line #6 in the Table on pg. 2 (PC-relative load), where:
+         4    b    0    5
+    0b0100 1011 0000 0101
+      5432 1098 7654 3210
+    Fixed Bit Value = 1
+    Rd = 011
+    Word8 = 0000 0101
+
+Referring to Section 5.6, we see:
+
+    Rd = Destination Register (= Register 3, in this case).
+    Word8 = Immediate value (= # of words, aka # of bytes * 4) to offset from the PC 
+            to calculate the address to load into Register 3, in this case.
+
+Now let's consider the following line:
+
+    bc: 43d2 mvns r2, r2
+
+         4    3    d    2
+    0b0100 0011 1101 0010
+      5432 1098 7654 3210
+
+This matches #4 in Table 2 (ALU operations). Referring to Section 5.4, we see:
+
+    Fixed Bit Value = 010000
+    Op = 1111
+    Rs = 010
+    Rd = 010
+
+For this line, Op = MVNS, aka bitwise NOT Register#n.
+Rs = Source Register = r2.
+Rd = Dest.  Register = r2.
+
+Moving on to the next Assembly Language line:
+
+    be: 400a ands r2, r1
+
+         4    0    0    a
+    0b0100 0000 0000 1010
+      5432 1098 7654 3210
+
+which is another ALU operation Instruction.  
+
+    Fixed Bit Value = 010000
+    Op = 0000
+    Rs = 001
+    Rd = 010
+
+In Section 5.4 again, we see:
+
+   Op = bitwise AND
+
+Source Register = r1
+Dest.  Register = r2
+
+Next Assembly Language Line:
+
+    c0: 615a str r2, [r3, #20]
+
+         6    1    5    a
+    0b0110 0001 0101 1010
+      5432 1098 7654 3210
+
+This matches #9 on pg. 2 (Load/store with immediate offset).
+
+In Section 5.9, we see:
+
+    Fixed Bit Value = 011
+    B = 0			# (1 = Byte quantity, 0 = word quantity)
+    L = 0			# (1 = Load from memory, 0 = Store to memory)
+    Offset5 = 00101
+    Rb = 011
+    Rd = 010
+
+This {B,L} = Calculate the target address by:
+             add together the value of Rb and the immediate value (= Offset5).
+             Store the value of Rd at the calculated target address.
