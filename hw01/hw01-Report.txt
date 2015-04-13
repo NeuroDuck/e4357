@@ -46,6 +46,18 @@ After I made some further changes to my files, to push them to github.com, in my
 
 Not sure which dumpobj to use, nor which dumpobj args to use.
 
+My work and home IP's differ, so I do this to switch from one to the other:
+
+    sudo dhclient -r
+    sudo dhclient -v eth0
+or:
+    sudo service network-manager restart
+or:
+    nmcli con down id 'ConnectionNameHere'
+    nmcli con up id 'ConnectionNameHere'
+
+I've only tried the first one so far.
+
 Not sure how to get any files out of VirtualBox, thus my use of Screenshots.
 I.e., my Windows laptop blue-screen's when I plug in any Memory Key while VirtualBox is running, even with the VirtualBox USB extender installed.
 I.e.^2, after installing VirtualBox, my Windows laptop can no longer go into Safe Mode, so I can remove any potentially offending *.sys USB driver files.
