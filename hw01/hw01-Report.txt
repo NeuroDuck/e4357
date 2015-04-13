@@ -41,6 +41,7 @@ to submit my still-needing-changes files, so I can at least have something check
 
 After I made some further changes to my files, to push them to github.com, in my VirtualBox I did:
 
+    git commit -a -m "commit message."
     git push origin master
 
 Not sure which dumpobj to use, nor which dumpobj args to use.
