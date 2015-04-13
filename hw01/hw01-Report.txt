@@ -1,0 +1,111 @@
+Assignment#1 Report:
+-------------------
+
+This assignment took somewhere between 16-24 hours.
+
+Issues along the way:
+--------------------
+Textbooks are unavailable to me, due to lack of funds.
+
+Assignment goals are ill-defined, with new Assignment details being posted as late as 5 hours after the completion deadline.
+
+Tool chain to use is ill-defined.  The commands to use just magically appeared at the end of the spreadsheet with no announcement in the Announcements section.
+
+It's not clear if we're supposed to disassemble the .bin files produced by developer.mbed.org, or the ones produced by gcc in VirtualBox.
+
+Shared VirtualBox image was helpful, up to a point.
+I.e., it has the tool chain installed, so we can use it, once we learn what commands to use.
+I.e.^2, github.com refuses to work with the VirtualBox image's Firefox, due to that Firefox being ancient (v23, where Firefox is now at v37).
+I.e.^3, VirtualBox's "Ubuntu Software Center" provides no way to upgrade Firefox.
+I.e.^4, synaptic must be installed, and how to do that must be identified.
+	sudo apt-get install synaptic
+I.e.^5, synaptic does allow upgrading Firefox.
+I.e.^6, This is all necessary because github.com won't allow uploading of a ssh key using the ancient Firefox version in the shared VirtualBox image.
+I.e.^7, In synaptic, <mark firefox & xul-extubufox for update, Apply>.
+I.e.^8, To avoid weird line-wrapping issues with copy+paste’ing my ssh key, I opened my id_rsa.pub file in my VirtualBox's newly-updated FireFox, copy’ed it out of there with the mouse, then pasted it into the github.com’s Add SSH Key window in my Settings there.
+
+I followed github.com's second group of getting started instructions to set up my local repository, in ~/git/hw01 in my VirtualBox.
+
+To populate my local repository, I did:
+
+    mkdir ~/git
+    cd ~/git
+    echo \# e4357 > README.md
+    git init
+    git add README.md
+    git commit -m "first commit"
+    git remote add origin https://github.com/NeuroDuck/e4357.git
+    git push -u origin master
+
+to submit my still-needing-changes files, so I can at least have something checked in there now.
+
+After I made some further changes to my files, to push them to github.com, in my VirtualBox I did:
+
+    git push origin master
+
+Not sure which dumpobj to use, nor which dumpobj args to use.
+
+Not sure how to get any files out of VirtualBox, thus my use of Screenshots.
+I.e., my Windows laptop blue-screen's when I plug in any Memory Key while VirtualBox is running, even with the VirtualBox USB extender installed.
+I.e.^2, after installing VirtualBox, my Windows laptop can no longer go into Safe Mode, so I can remove any potentially offending *.sys USB driver files.
+I.e.,^3 Drag-and-Drop and Clipboard out of VirtualBox don't work, nor does mounting Windows Shared Drives in VirtualBox.
+
+Finally found the mapping between Port:Pin numbers and Development Board pin numbers.
+
+Finally discovered that there are defined Register offset .h files.
+
+Finally found some Include Dirs to use with "gcc -I" so I can use the defined Register offsets, rather than hard-coding in their addresses.
+
+To allow my use of:
+
+    #include <LPC17xx.h>
+
+to work, in my VirtualBox, in ~/git/hw01, I set:
+MBED_DIR=../../work02/mbed/libraries/mbed/targets/cmsis/TARGET_NXP/TARGET_LPC176X
+CMSIS_DIR=../../work02/mbed/libraries/mbed/targets/cmsis
+
+and compiled as follows:
+
+  arm-none-eabi-gcc -g -O0 -I$MBED_DIR -I$CMSIS_DIR -mcpu=cortex-m3 -mthumb -c gpio.c -o gpio.o
+
+then dumped the disassembly as follows:
+
+  arm-none-eabi-objdump –S –D gpio.o | more 
+
+which gives the results shown in the checked-in "setGPIO-function_disassembly.png".
+
+I still don't know which of the many different Include Dirs in the shared VirtualBox image are the correct ones to use.
+
+I finally was able to understand and implement the FIOPIN approach described in the User's Manual Section 9.6.2.
+
+Results/Solutions:
+-----------------
+Meaning of Machine Code in Loop Body:
+------------------------------------
+Referring to the checked-in "setGPIO-function_disassembly.png", skip down to the address line "b4:", which is where this line's Machine Code starts:
+
+    LPC_GPIO0->FIOPIN &= ~pinMask;
+
+Even when compiled with -O0, I find the resulting Machine Code to be very difficult to understand.
+
+Referring to the User's Manual Section 34.2.4.2.1, etc., I see:
+
+    ldr{notype}{nocondition} r3, [pc, #20] # PC-relative immediate offset addressing,
+					   # i.e., the pinMask variable.
+
+    The b4-ba ldr's are doing the LPC_GPIO0->FIOPIN indirection, which consists of:
+
+    LPC_GPIO0 = LPC_GPIO_BASE(2009c0000) + FIOPIN (= 20 = +4(FIODIR) +12(RESERVED) +4(FIOMASK))
+
+so apparently pc contains LPC_GPIO_BASE(2009c0000), and the current value stores at address 
+LPC_GPIO_BASE(2009c0000) + FIOPIN is stored into r3, where the result will be stored in line c0:.
+
+Then r2 is loaded with the value of pinMask, which is loaded from the address [r7, #12].
+
+Next mvns = move NOT and update condition flags, basically setting the flags according to value stored in r2.
+
+next ands = logical AND of r1 and r2, setting the condition flags accordingly.
+
+Finally str = store the r2 AND result in [r3, #20], which contains LPC_GPIO_BASE(2009c0000) + FIOPIN.
+
+There are some parts I'm missing here, i.e., how register mapping copies the register contents above in/out of 0x2009c0000+20.
