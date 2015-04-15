@@ -63,6 +63,19 @@ I.e., my Windows laptop blue-screen's when I plug in any Memory Key while Virtua
 I.e.^2, after installing VirtualBox, my Windows laptop can no longer go into Safe Mode, so I can remove any potentially offending *.sys USB driver files.
 I.e.,^3 Drag-and-Drop and Clipboard out of VirtualBox don't work, nor does mounting Windows Shared Drives in VirtualBox.
 
+Update: sudo adduser e4357 vboxsf	// Add my user to VirtualBox's vboxsf group, which owns 
+					// the /media entries, i.e., sf_C_DRIVE and sf_E_DRIVE (= mbed).
+Update: I re-installed my VirtualBox, and made sure I plugged my DevBoard into a USB2 Port instead of
+	a USB3 Port.  Doing the latter apparently causes VirtualBox to Blue-Screen my Windows laptop.
+Update: Now I can cd into /media/sf_E_Drive, but its contents are independent of those of the DevBoard.
+Update: In my VirtualBox, I clicked on Devices->USB Devices, which downloaded a MBED device driver from 
+	Windows Update.
+Update: Now my VirtualBox has /media/MBED, whose contents do = my DevBoard's contents.
+Update: Alas, having the VirtualBox connect to my DevBoard in this way causes the E: Drive to disappear
+	from my laptop.
+Update:	Is there a way to have the VirtualBox successfully access my DevBoard as /media/sf_E_Drive, 
+	instead of /media/MBED, so I can continue to see my DevBoard as E: on my laptop?
+
 Finally found the mapping between Port:Pin numbers and Development Board pin numbers.
 
 Finally discovered that there are defined Register offset .h files.
