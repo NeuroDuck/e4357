@@ -1,0 +1,127 @@
+BEGIN
+--------------------------------------------------------------------
+Q1: Is there any compile error with the following code (if any)?
+
+	unsigned int Arr[16];
+	3[Arr] = 7; 
+ 
+Explain:
+===========================
+Yes. 2nd line should read:
+
+    Arr[3] = 7;
+==========================
+	
+--------------------------------------------------------------------
+Q2: What is the difference between the following 3 statements? 
+
+1. const int * px; 
+2. int const * px; 
+3. int * const px; 
+
+==========================
+    1. const int * px;
+is the same as:
+    2. int const * px;
+because the first const can be on either side of the type,
+so both mean:
+    pointer to a constant (= unchangeable) int.
+	Read: Can change the pointer (px's) value (= address), 
+	      but not the value pointed to.
+==========================
+3. const (= unchangeable) pointer to int.
+   Read: Can change the value pointed to, 
+         but not the pointer (= address stored in px).
+==========================
+
+Is there any compile error for the following cases?
+case1: 
+int x = 13; 
+const int * px; 
+px = & x; 
+
+case 2: 
+int x = 13; 
+int const * px; 
+px = & x; 
+
+case 3: 
+int x = 13; 
+int * const px; 
+px = & x; 
+
+Explain:
+==========================
+case1 is ok.  
+Can change the address stored in px, but not the value pointed to.
+
+case2 is ok.
+Same as case1, as explained above.
+Can change the address stored in px, but not the value pointed to.
+
+case3 has a problem.
+The pointer value (= address, aka contents of px) are marked as 
+const (= unchangable), so "px = anything" will always have a 
+compile error.
+
+In addition, case3's declaration of px as "int * const px;", 
+is required by the compiler to have an initial,
+i.e., "int* const px = 0;", etc.
+==========================
+
+--------------------------------------------------------------------
+Q3: Write a function to set or clear ith bit of a 32-bit register. 
+	Where ith (0-based) := {0, 1, 2, …, 31 } 
+void reg_set(volatile unsigned int * pReg, int ith) 
+{ 
+==========================
+I checked this into my hw01 in github last week:
+    https://github.com/NeuroDuck/e4357/blob/master/hw01/gpio.c
+	(I should add volatile to my function signature, my mistake.)
+	
+void reg_setNotClear(volatile unsigned int * pReg, int ith, int highNotLow)
+{ 
+	int dirMask = 1 << ith;
+	
+	if (highNotLow != 0)			// We want it to be 1.
+		pReg |= dirMask;
+	else								// We want it to be 0.
+		pReg &= ~dirMask;
+} 
+
+void reg_clear(volatile unsigned int * pReg, int ith) 
+{ 
+	int dirMask = 1 << ith;
+	
+	pReg &= ~dirMask;
+} 
+==========================
+
+--------------------------------------------------------------------
+Q4: Write a swap function in C.
+void swap(unsigned int * px, unsigned int *py) 
+{ 
+==========================
+	*px ^= *py;
+	*py ^= *px;
+	*px ^= *py;
+==========================
+Plus several other versions, which is best depends on the data being swapped.
+==========================
+} 
+
+--------------------------------------------------------------------
+Q5:	What is the output of the following code? (Given: sizeof(unsigned int) is 4) 
+
+unsigned int Arr[16]; 
+unsigned int a0 = (unsigned int) &Arr[0]; 
+unsigned int a3 = (unsigned int) &Arr[3]; 
+printf(“%d\n”, a3 – a0); 
+
+==========================
+a0 contains the address of Arr.
+a3 contains the address of Arr + 3 * sizeof( unsigned int)
+a3 - a0 = 12
+==========================
+
+END

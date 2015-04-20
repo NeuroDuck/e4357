@@ -1,0 +1,46 @@
+BEGIN
+--------------------------------------------------------------------
+Q1: How many microcontrollers in the mbed LPC1768 board?
+
+MBED-IF01 (Flash Mgmt.?)
+I2C (AT45DB161D)
+Ethernet Phy (DP83848J)
+
+Where are additional sources for this info?
+
+--------------------------------------------------------------------
+Q2: What is the size (in GB) of the Flash Memory ("USB Dsik") of the LPC1768?
+
+In the datasheet I have, it says 512kB Flash, 
+but parts of various configurations may exist.
+
+--------------------------------------------------------------------
+Q3: Name 3 functions (or features) that mbed USB cable provided:
+
+1. Power.
+2. Program uploading.
+3. Character input and output between Computer and mbed. 
+
+--------------------------------------------------------------------
+Q4: What is the name of the Ethernet PHY chip in the mbed board (LPC1768)?
+
+Apparently, "none", inside the MCU.  In the User's Manual pg. 150, it says:
+
+"The Ethernet block interfaces between an off-chip Ethernet PHY using 
+ the RMII (Reduced Media Independent Interface) protocol and the on-chip 
+ MIIM (Media Independent Interface Management) serial bus, also referred 
+ to as MDIO (Management Data Input/Output)."
+ 
+That said, referring to pg. 4 of the mbed board schematic here:
+ 
+    http://developer.mbed.org/media/uploads/chris/mbed-005.1.pdf
+	
+it says the PHY contains a "DP83848J".
+ 
+--------------------------------------------------------------------
+Q5: Reference LPC17xx_UM10360.pdf (Chapter 2)
+    What are the GPIO address window?
+
+On pg. 13 of the User's Manual, it says 0x2009C000 - 0x2009FFFF.
+
+END
