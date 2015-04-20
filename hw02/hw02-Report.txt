@@ -1,0 +1,59 @@
+Assignment #2 Report:
+-------------------
+
+This assignment took somewhere between xx-xx hours.
+
+Issues along the way:
+--------------------
+sudo apt-get install tcsh
+
+Findings along the way:
+----------------------
+In tcsh:
+set a=b.c
+echo $a:r # prints b
+echo $a:e # prints c
+Using $1:r and $1:e in tcsh, make it easier to write
+generic compile scripts.
+
+Yes, you are right, Clifff like you'd asked in a prev email you'll need the mbed Windows Serial driver from here:
+http://developer.mbed.org/handbook/Windows-serial-configuration
+
+
+Timer Findings along the way:
+----------------------
+LPC1768 has 4 Counter/Timers.
+They have 2 or 4 Capture(CAP) inputs,
+      and 2 or 4 Match(MAT)   outputs.
+Int on Match, 
+Stop counting on Match, w/optional Int.
+Reset timer on match, w/optional Int.
+MAT outputs can be set low/high/toggle/nochange on Match.
+Count externally-supplied clock.
+Four Match registers.
+Four Capture inputs, to trap timer value when an input 
+signal transitions.
+
+Assignment:
+----------
+C:\git\e4357\hw02\HW2ComputeinputGPIOsignalfrequency.pdf
+
+Starting from Sample code here:
+------------------------------
+https://github.com/Shengliang/e4357/blob/master/spring2015/hw2/main.c
+
+GPIO Pins vs. Ports map here:
+----------------------------
+http://developer.mbed.org/users/synvox/notebook/lpc1768-pinout-with-labelled-mbed-pins/
+
+My Pin = 27 = P0[11].
+
+Providing my Input Signal from my 'scope's Signal Generator, as shown in the checked in photo.
+
+
+Results/Solutions:
+-----------------
+
+My hw02.cpp comments explain my current thought process.
+
+I'll on it further as time permits.
