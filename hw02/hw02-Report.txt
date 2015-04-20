@@ -1,7 +1,7 @@
 Assignment #2 Report:
 -------------------
 
-This assignment took somewhere between 10-14 hours so far.
+This assignment took somewhere between 14-24 hours so far.
 
 Issues along the way:
 --------------------
@@ -19,6 +19,7 @@ generic compile scripts.
 Yes, you are right, Clifff like you'd asked in a prev email you'll need the mbed Windows Serial driver from here:
 http://developer.mbed.org/handbook/Windows-serial-configuration
 
+Switched datatype of buffer from "unsigned char" to "uint8_t".  It's the same, I know, but I wanted it to exactly match the datatype of FIOPIN1 in LPC17xx.h.
 
 Timer Findings along the way:
 ----------------------
@@ -57,3 +58,82 @@ Results/Solutions:
 My hw02.cpp comments explain my current thought process.
 
 I'll on it further as time permits.
+
+My output with the current version (Mon., ~12:50pm), 
+with an 8MHz input signal from my DSO QUAD's Signal 
+Generator is as shown below.
+
+See the 8MHz photo to see how low-quality my input signal is:
+
+8b: 1000 1011 : 0 
+8b: 1000 1011 : 0 
+8f: 1000 1111 : 1 
+8f: 1000 1111 : 1 
+8f: 1000 1111 : 1 
+8f: 1000 1111 : 1 
+8f: 1000 1111 : 1 
+8f: 1000 1111 : 1 
+
+8b: 1000 1011 : 0 
+8b: 1000 1011 : 0 
+8b: 1000 1011 : 0 
+8f: 1000 1111 : 1 
+8f: 1000 1111 : 1 
+8f: 1000 1111 : 1 
+8f: 1000 1111 : 1 
+8b: 1000 1011 : 0 
+
+8f: 1000 1111 : 1 
+8f: 1000 1111 : 1 
+8f: 1000 1111 : 1 
+8b: 1000 1011 : 0 
+8b: 1000 1011 : 0 
+8b: 1000 1011 : 0 
+8b: 1000 1011 : 0 
+8f: 1000 1111 : 1 
+
+8f: 1000 1111 : 1 
+8b: 1000 1011 : 0 
+8f: 1000 1111 : 1 
+8b: 1000 1011 : 0 
+8b: 1000 1011 : 0 
+8b: 1000 1011 : 0 
+8b: 1000 1011 : 0 
+8f: 1000 1111 : 1 
+
+8b: 1000 1011 : 0 
+8b: 1000 1011 : 0 
+8f: 1000 1111 : 1 
+8f: 1000 1111 : 1 
+8f: 1000 1111 : 1 
+8f: 1000 1111 : 1 
+8f: 1000 1111 : 1 
+8f: 1000 1111 : 1 
+
+8b: 1000 1011 : 0 
+8b: 1000 1011 : 0 
+8b: 1000 1011 : 0 
+8f: 1000 1111 : 1 
+8f: 1000 1111 : 1 
+8f: 1000 1111 : 1 
+8f: 1000 1111 : 1 
+8b: 1000 1011 : 0 
+
+8f: 1000 1111 : 1 
+8f: 1000 1111 : 1 
+8f: 1000 1111 : 1 
+8b: 1000 1011 : 0 
+8b: 1000 1011 : 0 
+8b: 1000 1011 : 0 
+8b: 1000 1011 : 0 
+8f: 1000 1111 : 1 
+
+The right-most 1's and 0's are my Pin's sampled state.
+
+So perhaps now I'm successfully detecting my input signal.
+
+I'll try it further with longer delays, ane a slower (= more square-wave-shaped) input signal, to check if I can get more clear-cut results than the above.
+
+I'll check in another version of source and this Report when I do.
+
+First I'll be working on the Quizzes though.
