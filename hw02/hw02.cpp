@@ -1,115 +1,60 @@
-// HW01
+// HW01 Solution used as starting point for my HW02.
 // Assigned Dip pin# 27
 // port 0, pin 11
 
 #include <stdint.h>
 #include "mbed.h"
-/*
-#define LPC_GPIO_BASE         (0x2009C000UL)
 
-#define     __IO    volatile             
-#define     __O    volatile             
-
-typedef struct
-{
-  union {
-    __IO uint32_t FIODIR;
-    struct {
-      __IO uint16_t FIODIRL;
-      __IO uint16_t FIODIRH;
-    };
-    struct {
-      __IO uint8_t  FIODIR0;
-      __IO uint8_t  FIODIR1;
-      __IO uint8_t  FIODIR2;
-      __IO uint8_t  FIODIR3;
-    };
-  };
-  uint32_t RESERVED0[3];
-  union {
-    __IO uint32_t FIOMASK;
-    struct {
-      __IO uint16_t FIOMASKL;
-      __IO uint16_t FIOMASKH;
-    };
-    struct {
-      __IO uint8_t  FIOMASK0;
-      __IO uint8_t  FIOMASK1;
-      __IO uint8_t  FIOMASK2;
-      __IO uint8_t  FIOMASK3;
-    };
-  };
-  union {
-    __IO uint32_t FIOPIN;
-    struct {
-      __IO uint16_t FIOPINL;
-      __IO uint16_t FIOPINH;
-    };
-    struct {
-      __IO uint8_t  FIOPIN0;
-      __IO uint8_t  FIOPIN1;
-      __IO uint8_t  FIOPIN2;
-      __IO uint8_t  FIOPIN3;
-    };
-  };
-  union {
-    __IO uint32_t FIOSET;
-    struct {
-      __IO uint16_t FIOSETL;
-      __IO uint16_t FIOSETH;
-    };
-    struct {
-      __IO uint8_t  FIOSET0;
-      __IO uint8_t  FIOSET1;
-      __IO uint8_t  FIOSET2;
-      __IO uint8_t  FIOSET3;
-    };
-  };
-  union {
-    __O  uint32_t FIOCLR;
-    struct {
-      __O  uint16_t FIOCLRL;
-      __O  uint16_t FIOCLRH;
-    };
-    struct {
-      __O  uint8_t  FIOCLR0;
-      __O  uint8_t  FIOCLR1;
-      __O  uint8_t  FIOCLR2;
-      __O  uint8_t  FIOCLR3;
-    };
-  };
-} LPC_GPIO_TypeDef;
-
-#define LPC_GPIO_PORT_OFFSET        (0x20UL)
-#define LPC_GPIO1_BASE        (LPC_GPIO_BASE + 0x00020)
-#define LPC_GPIO2_BASE        (LPC_GPIO_BASE + 0x00040)
-#define LPC_GPIO3_BASE        (LPC_GPIO_BASE + 0x00060)
-#define LPC_GPIO4_BASE        (LPC_GPIO_BASE + 0x00080)
-
-#define LPC_GPIO1             ((LPC_GPIO_TypeDef      *) LPC_GPIO1_BASE    )
-#define LPC_GPIO2             ((LPC_GPIO_TypeDef      *) LPC_GPIO2_BASE    )
-#define LPC_GPIO3             ((LPC_GPIO_TypeDef      *) LPC_GPIO3_BASE    )
-#define LPC_GPIO4             ((LPC_GPIO_TypeDef      *) LPC_GPIO4_BASE    )
-
-#define LPC_GPIO0_BASE        (LPC_GPIO_BASE + 0x00000)
-#define LPC_GPIO0             ((LPC_GPIO_TypeDef      *) LPC_GPIO0_BASE    )
-*/
-unsigned char buffer[1024];
+#define BUFLEN 1024
+unsigned char buffer[BUFLEN];
+const unsigned int lastNdx = BUFLEN - 1;
 
 #define MYPORTPINVALUES LPC_GPIO0->FIOPIN
+#define MYPORTPIN 11
+#define MAXREGSPERPASS 8
 
+#define WAITTIMEINuS 3
+#define SAMPLEINTOREG( reg) reg = MYPORTPINVALUES; wait_us( WAITTIMEINuS)
+
+// Initial input freq. = 4MHz = 4 * 1024 * 1024.
+// 50% duty-cycle, = 0.25 uS.
+// 
+// mbed clock = 96 * 1024 * 1024 = 9.93 nS.
+//
+// So we can see the full down-up-down-up cycle, 
+// want our 8 samples to take >= 0.25 uS,
+// i.e., 31.3 nS each.
+//
+// So to get our 8 samples spread across one 4MHz up+down, 
+// we need to add a delay of 21.37 nS in beween each sample.
+//
+// Since there is no wait_ns() function, only wait_us(), I'll 
+// have to settle for fewer data points per measured signal cycle,
+// or decrease my input signal frequency by a factor of 50, 
+// i.e., to 80 kHz. 
+// My Signal Generator in my DSO QUAD 'scope can only output 
+// 50 or 100 kHz, so I'll set it 50 to 50kHz.
+//
+// Re-starting the above, 50 kHz = 20 uS.
+// And to cover a bit more than one clock cycle of the input signal,
+// I want the 8 samples to take about 25 uS, or ~3.125 uS each.
+//
+// Meaning that I want to delay 3 uS in between samples, as at this 
+// slow speed, the extra time of the actual sampling instructions 
+// execution is negligible.
+//
 void sample( unsigned char *buf)
 {
     register unsigned char reg1, reg2, reg3, reg4, reg5, reg6, reg7, reg8;
 
-    reg1 = MYPORTPINVALUES;
-    reg2 = MYPORTPINVALUES;
-    reg3 = MYPORTPINVALUES;
-    reg4 = MYPORTPINVALUES;
-    reg5 = MYPORTPINVALUES;
-    reg6 = MYPORTPINVALUES;
-    reg7 = MYPORTPINVALUES;
-    reg8 = MYPORTPINVALUES;
+    SAMPLEINTOREG( reg1);
+    SAMPLEINTOREG( reg2);
+    SAMPLEINTOREG( reg3);
+    SAMPLEINTOREG( reg4);
+    SAMPLEINTOREG( reg5);
+    SAMPLEINTOREG( reg6);
+    SAMPLEINTOREG( reg7);
+    SAMPLEINTOREG( reg8);
  
     buf[0] = reg1;
     buf[1] = reg2;
@@ -123,32 +68,34 @@ void sample( unsigned char *buf)
     return;
 }
 
+const unsigned int myPortPinMask = 1 << MYPORTPIN;
+
+void analyze( unsigned char *buf, unsigned char myPortPin)
+{    
+    for (int i = 0 ; i < MAXREGSPERPASS ; i++)
+    {
+        printf( (buf[i] & myPortPinMask) ? "1 " : "0 ");
+    }
+    printf( "\r\n");
+}
+
 int main( void)
 { 
-/*
-    int c;
-*/
-    Serial pc( USBTX, USBRX); // tx, rx 
-    pc.baud( 9600);          //or pc.baud( 115200);
+    // int c;
+    // Serial pc( USBTX, USBRX); // tx, rx 
+    // pc.baud( 9600);          //or pc.baud( 115200);
 
-    pc.printf( "\r\nHello World!\r\n"); 
+    printf( "\r\nHello World!\r\n"); 
 
     unsigned char *p = buffer;
  
-    while (false && p < &buffer[1023])
+    while (false && p < &(buffer[lastNdx]))
     {
-        pc.printf( "\r\nHello World!\r\n"); 
-        
         sample( p);
         p += 8;
     }
+    
+    analyze( buffer, MYPORTPIN);
  
     return 0;
 }
-/*
-        while(1) { 
-            pc.printf("\r\nEnter:"); 
-            ch = pc.getc(); 
-            pc.putc(ch); 
-            DisplayLed(ch); 
-*/
