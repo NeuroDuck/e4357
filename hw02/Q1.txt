@@ -10,6 +10,9 @@ Explain:
 Yes. 2nd line should read:
 
     Arr[3] = 7;
+	
+Correction:
+Apparently "3[Arr]" is valid code for gcc.
 ==========================
 	
 --------------------------------------------------------------------

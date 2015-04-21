@@ -2,24 +2,31 @@ BEGIN
 --------------------------------------------------------------------
 Q1: How many microcontrollers in the mbed LPC1768 board?
 
-MBED-IF01 (Flash Mgmt.?)
+Correction: not this one? MBED-IF01 (Flash Mgmt.?)
 I2C (AT45DB161D)
 Ethernet Phy (DP83848J)
 
-Where are additional sources for this info?
+Where are sources for this info?  I.e., just read the board's schematic?
 
 --------------------------------------------------------------------
-Q2: What is the size (in GB) of the Flash Memory ("USB Dsik") of the LPC1768?
+Q2: What is the size (in GB) of the Flash Memory ("USB Disk") of the LPC1768?
 
 In the datasheet I have, it says 512kB Flash, 
 but parts of various configurations may exist.
+
+Correction:
+"dir" in Windows says: "
+ 1,893,888 bytes free
+ 
+ Is this 2Gb listed in the User's Manual?
 
 --------------------------------------------------------------------
 Q3: Name 3 functions (or features) that mbed USB cable provided:
 
 1. Power.
-2. Program uploading.
+2. Program uploading, "E: drive access".
 3. Character input and output between Computer and mbed. 
+4. JTG Debugging.
 
 --------------------------------------------------------------------
 Q4: What is the name of the Ethernet PHY chip in the mbed board (LPC1768)?
