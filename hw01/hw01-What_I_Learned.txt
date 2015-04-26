@@ -4,6 +4,7 @@ hw01-What_I_Learned.txt:
 How to: 
 use VirtualBox shared image.
 use github.com.
+use Google Shared Groups.
 use arm-none-eabi-gcc, -objdump, etc. in shared VirtualBox image.
 add myself to the vboxsf group, so I can write to my Windows C: drive.
 not use USB3, to void Blue Screens.
