@@ -37,13 +37,23 @@ void printBin( uint8_t value)
 #define PIN6BITGREEN 0x01
 #define SPACE_CHAR ' '
 
+#define NO_DEBUG
+
 int main() 
 {
     // Accept default format, of 8 bits, no parity;
     async_port.baud( 9600);     // Set baud rate to 9600 (ie default).
-    
+
+#ifdef DEBUG
+    switch_word = 0x00;
+#endif
+      
     while (1)
-    {
+    {                                   
+#ifdef DEBUG
+        // Cycling the switch_word for testing.
+        switch_word = (switch_word + 1) % 4;
+#else  
         //Set up the word to be sent, by testing switch inputs.
                                    // Alternate between '!', '"', '#'.
         switch_word = SPACE_CHAR;  // Set up a recognizable output pattern.
@@ -53,10 +63,7 @@ int main()
             
         if (switch_ip6_green == 1)
             switch_word |= PIN6BITGREEN;
-        
-        // Cycling the switch_word for testing.
-        // switch_word = (switch_word + 1) % 4;
-            
+#endif      
         // Print what we're sending.  Compare this to 
         // what the other MPU prints for what it's receiving.
         printf( "%x: %c: ", switch_word, switch_word);
@@ -64,7 +71,7 @@ int main()
         printBin( switch_word);
         printf( "    ");
     
-        // My DSO Quad O'scope doesn't have an External Trigger Input.
+        // My DSO Quad O'scope doesn't have a strobe Input.
         // strobe = 1;                 // short strobe pulse.
 
         wait_ms( 500);
@@ -76,6 +83,10 @@ int main()
         
         if (async_port.readable() == 1)         // Is there a character to be read?
             recd_val = async_port.getc();         // If yes, then read it.
+            
+#ifdef DEBUG           
+        recd_val = switch_word;
+#endif
         
         // Print what we're receiving.
         // Compare this to what the other MCU prints out for what it's sending. 

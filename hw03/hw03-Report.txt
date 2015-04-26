@@ -1,7 +1,7 @@
 Assignment #3 Report:
 -------------------
 
-This assignment took about 10 hours, mostly getting the inter-MCU communication working, 
+This assignment took about 15 hours, mostly getting the inter-MCU communication working, 
 due to adding various print statements to diagnose wires plugged in incorrectly, typing
 errors in entering the code, etc. 
 
