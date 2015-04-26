@@ -37,7 +37,11 @@ void printBin( uint8_t value)
 #define PIN6BITGREEN 0x01
 #define SPACE_CHAR ' '
 
-#define NO_DEBUG
+#define NO_DEBUG 0
+#define AUTO_DEBUG 1
+#define SWITCH_DEBUG 2
+
+#define DEBUG NO_DEBUG
 
 int main() 
 {
@@ -50,7 +54,7 @@ int main()
       
     while (1)
     {                                   
-#ifdef DEBUG
+#if DEBUG == AUTO_DEBUG
         // Cycling the switch_word for testing.
         switch_word = (switch_word + 1) % 4;
 #else  
@@ -66,7 +70,7 @@ int main()
 #endif      
         // Print what we're sending.  Compare this to 
         // what the other MPU prints for what it's receiving.
-        printf( "%x: %c: ", switch_word, switch_word);
+        printf( "'%c': ", switch_word);
         printf( "%x: ", switch_word);
         printBin( switch_word);
         printf( "    ");
@@ -84,13 +88,14 @@ int main()
         if (async_port.readable() == 1)         // Is there a character to be read?
             recd_val = async_port.getc();         // If yes, then read it.
             
-#ifdef DEBUG           
+#if DEBUG == SWITCH_DEBUG
         recd_val = switch_word;
 #endif
         
         // Print what we're receiving.
         // Compare this to what the other MCU prints out for what it's sending. 
-        printf( "%x: %c: ", recd_val, recd_val);
+        printf( "'%c': ", recd_val);
+        printf( "%x: ", recd_val);
         printBin( recd_val);
         printf( "\r\n");
 
