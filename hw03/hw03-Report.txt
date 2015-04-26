@@ -1,0 +1,41 @@
+Assignment #3 Report:
+-------------------
+
+This assignment took about 10 hours, mostly getting the inter-MCU communication working, 
+due to adding various print statements to diagnose wires plugged in incorrectly, typing
+errors in entering the code, etc. 
+
+Issues along the way:
+--------------------
+Wiring up the two MCU's consistently, and for easy debugging.
+I.e., using green wire associated with a green LED, and 
+red wire associated with a red LED, and adding "GREEN" and "RED" 
+to #define constants, to simplify debugging.
+
+Findings along the way:
+----------------------
+There doesn't seem to be any straightforward-to-use Terminal program for Macs.
+At least, none of the several we tried worked.
+
+To test, we went through the Truth Table (00, 01, 10, 11) of inputs on both MCU's, 
+and confirmed via printf()'s and the LED states, that the correct signals were 
+being received and interpreted on the other MCU, in both directions.
+
+Assignment:
+----------
+C:\git\e4357\hw03\HW3-Assignment.txt
+
+Quiz:
+----
+https://github.com/Shengliang/e4357/blob/master/fall2014/quiz/Q3.txt
+
+Starting from Sample code here:
+------------------------------
+Embedded_Systems-book.pdf, pg. 135.
+
+Results/Solutions:
+-----------------
+My hw03.cpp adds to the sample code on pg. 135, by making it easier to debug 
+any mis-signaling between the two MCU's.
+
+I'll work on an I2C version of it further as time permits.
