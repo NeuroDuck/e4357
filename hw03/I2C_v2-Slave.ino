@@ -1,4 +1,3 @@
-
 // Wire Master Reader
 // by Nicholas Zambetti <http://www.zambetti.com>
 
@@ -51,20 +50,40 @@ void setup()
 void receiveHandler( int howMany)
 {
   command = Wire.read();  // remember command for when we get request
+  
+  printHexCharWithMsg( "Received command = 0x", command);
 } 
+
+void printHexCharWithMsg( char* msg, char hexChar)
+{
+  Serial.print( msg);
+  Serial.print( hexChar, HEX);
+  Serial.print( "\n");
+}
 
 void requestHandler()
 {
+    printHexCharWithMsg( "Answering with results for command = 0x", command);
+
+  char myID = 0x55;
+  char orangeResult, greenResult;
+
   switch (command)
   {
   case CMD_ID:      
-    Wire.write( 0x55); 
+    Wire.write( myID); 
+    printHexCharWithMsg( "ID = 0x", myID);
     break;   // send our ID 
-  case CMD_READ_ORANGE_D5: 
-    Wire.write( digitalRead( ORANGE_PIN));
+    
+  case CMD_READ_ORANGE_D5:
+    orangeResult = digitalRead( ORANGE_PIN);
+    printHexCharWithMsg( "ID = 0x", orangeResult);
+    Wire.write( orangeResult);
     break;  // send ORANGE_PIN's state.
+    
   case CMD_READ_GREEN_D8: 
-    Wire.write( digitalRead( GREEN_PIN));
+    greenResult = digitalRead( GREEN_PIN);
+    Wire.write( greenResult);
     break;   // send GREEN_PIN's state.
   }
 }
@@ -75,38 +94,3 @@ void loop()
 {
   // All done by interrupts.
 }
-
-// Code for Slave Sender - Program for Arduino 2
-// Wire Slave Sender
-// by Nicholas Zambetti <http://www.zambetti.com>
-
-// Demonstrates use of the Wire library
-// Sends data as an I2C/TWI slave device
-// Refer to the "Wire Master Reader" example for use with this
-
-// Created 29 March 2006
-
-// This example code is in the public domain.
-
-/*
-#include <Wire.h>
-
-void setup()
-{
-  Wire.begin(2);                // join i2c bus with address #2
-  Wire.onRequest(requestEvent); // register event
-}
-
-void loop()
-{
-  delay(100);
-}
-
-// function that executes whenever data is requested by master
-// this function is registered as an event, see setup()
-void requestEvent()
-{
-  Wire.write("hello "); // respond with message of 6 bytes
-                       // as expected by master
-}
-*/

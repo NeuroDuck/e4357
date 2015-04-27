@@ -33,48 +33,51 @@ enum {
     CMD_READ_ORANGE_D5 = 2,
     CMD_READ_GREEN_D8 = 3
 };
-char cmds[3] = {
+char cmdCodes[3] = {
     CMD_ID, 
     CMD_READ_ORANGE_D5, 
     CMD_READ_GREEN_D8 
 };
+char* cmdNames[3] = {
+    "ID",
+    "ORANGE_D5",
+    "GREEN_D8"
+};
+
 char result[10];
 
-int sendCommand( const char* cmd, const int responseSize)
+int sendCommand( const char cmdNdx, const int responseSize)
 {
     //       ( int address, const char *data, int length);
-    i2c.write( SLAVE_ADDRESS8BIT, cmd, 1);
+    i2c.write( SLAVE_ADDRESS8BIT, &(cmdCodes[cmdNdx]), 1);
     
     wait_ms( 500);
     
     //                ( int address, char *data, int length)
     int ack = i2c.read( SLAVE_ADDRESS8BIT, result, responseSize);
 
-    printf( "cmd = %x, ", cmd);
-    printf( "result = %x\r\n", result);
+    printf( "cmdCode = %d, ", cmdCodes[cmdNdx]);
+    printf( "%s = %x\r\n", cmdNames[cmdNdx], result[0]);
     
     return ack;
   }
 
 int main() 
 {        
-    int cmdsNdx = 0;
+    int cmdNdx = 0;
     
-    int ack = sendCommand( &(cmds[cmdsNdx++]), 1);
+    int ack = sendCommand( cmdNdx++, 1);
   
-    if (ack == 0)
-        printf( "Slave is ID: %x\r\n", result[0]);
-    else
-        printf( "ack = %x, No response to ID request.", ack);
-        
-return 0;
-    
-    while (1) 
+    if (cmdNdx == 0)
     {
-       sendCommand( &(cmds[cmdsNdx]), 1);
-       
-       cmdsNdx = (cmdsNdx + 1) % (sizeof( cmds) / sizeof( char));
+        if (ack == 0)
+            printf( "Slave is ID: %x\r\n", result[0]);
+        else
+            printf( "ack = %x, No response to ID request.", ack);
     }
+          
+    sendCommand( cmdNdx++, 1);
+    sendCommand( cmdNdx++, 1);
     
     return 0;
 }
