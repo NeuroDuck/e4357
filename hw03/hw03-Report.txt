@@ -60,3 +60,15 @@ My Slave is an Arduino Nano, running the I2C_v2-Slave.ino sketch.
 I forgot to mention, the NACK (0x54), in my Logic Analyzer's I2C 
 window is really the SLAVE_ADDRESS7BIT (0x2a), left-shifted 1 bit,
 to make room for the 0 or 1 to specify I2C Read or I2C Write.
+
+I've completed and checked in a complete implementation of 3 commands and 
+responses being exchanged via I2C between the LPC1768 and Arduino Nano, 
+along with photos of the output and wiring.
+
+One of the commands just checks the (fixed) ID# of the I2C Slave.
+
+Each of the other two commands request and return the value of 
+the "Orange" and the "Green" switches (actually wires) on the I2C Slave.
+
+I've confirmed that the wires' being plugged into "+" or "-" are 
+accurately reflected in the values returned to the I2C Master.
