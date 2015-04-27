@@ -39,3 +39,17 @@ My hw03.cpp adds to the sample code on pg. 135, by making it easier to debug
 any mis-signaling between the two MCU's.
 
 I'll work on an I2C version of it further as time permits.
+
+The "I2C Analyzer-p1.png" image shows my Logic Analyzer's output for:
+
+    I2C i2c( p28, p26);        // SDA, SCL;
+    while (1)
+    {
+        i2c.start();
+        i2c.write( 0x2a, "S", 1, false);
+        i2c.stop();
+    }
+
+with no Device 0x2a present on the I2C Bus.
+
+I'll add more once I add the Slave I2C Device.
