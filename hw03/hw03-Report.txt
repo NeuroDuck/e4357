@@ -56,3 +56,7 @@ I'll add more once I add the Slave I2C Device.
 
 Added Screenshots for Debugging I2C (ask Slave for its ID only).  
 My Slave is an Arduino Nano, running the I2C_v2-Slave.ino sketch.
+
+I forgot to mention, the NACK (0x54), in my Logic Analyzer's I2C 
+window is really the SLAVE_ADDRESS7BIT (0x2a), left-shifted 1 bit,
+to make room for the 0 or 1 to specify I2C Read or I2C Write.
