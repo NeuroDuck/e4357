@@ -53,3 +53,6 @@ The "I2C Analyzer-p1.png" image shows my Logic Analyzer's output for:
 with no Device 0x2a present on the I2C Bus.
 
 I'll add more once I add the Slave I2C Device.
+
+Added Screenshots for Debugging I2C (ask Slave for its ID only).  
+My Slave is an Arduino Nano, running the I2C_v2-Slave.ino sketch.

@@ -1,115 +1,80 @@
-/*
- * Program Example 7.9: 
- * Sets the mbed up for async communication, and exchanges data with
- * a similar node, sending its own switch positions, and displaying 
- * those of the other.
-*/
+/* mbed Example Program
+ * Copyright (c) 2006-2014 ARM Limited
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+ 
+ // Smashed together with the code from here:
+ // http://www.gammon.com.au/forum/?id=10896
+ //
 #include "mbed.h"
 
-Serial async_port( p9, p10);    // Set up TX and RX on pins 9 and 10.
+          // vvv      vvv These are actually SDA2 & SCL2.
+I2C i2c( p28, p27); // I2C_SDA, I2C_SCL); 
+//       ^^^ P0[27]   ^^^ P0[28].
+//Should ==  p28      ==  p27.
+//       ORANGE_WIRE  == GREEN_WIRE
 
-DigitalOut red_led( p25);       // Red LED.
-DigitalOut green_led( p26);     // Green LED.
-DigitalOut strobe( p7);         // A strobe to trigger the scope.
+const int SLAVE_ADDRESS7BIT = 0x2a;                   // 7 bit I2C address
+const int SLAVE_ADDRESS8BIT = SLAVE_ADDRESS7BIT << 1; // 8 bit I2C address.
 
-DigitalIn switch_ip5_red( p5);
-DigitalIn switch_ip6_green( p6);
+enum {
+    CMD_ID = 1,
+    CMD_READ_ORANGE_D5 = 2,
+    CMD_READ_GREEN_D8 = 3
+};
+char cmds[3] = {
+    CMD_ID, 
+    CMD_READ_ORANGE_D5, 
+    CMD_READ_GREEN_D8 
+};
+char result[10];
 
-uint8_t switch_word;               // The word we will send.
-uint8_t recd_val;                  // The received value.
-
-void printBin( uint8_t value)
+int sendCommand( const char* cmd, const int responseSize)
 {
-    uint8_t mask = 1 << 7;
+    //       ( int address, const char *data, int length);
+    i2c.write( SLAVE_ADDRESS8BIT, cmd, 1);
     
-    for (int i = 7 ; i >= 0 ; i--)
-    {
-        printf( (value & mask) ? "1" : "0");
-        
-        mask >>= 1;
-        
-        if (i % 4 == 0)
-            printf( " ");
-    }
-}
+    wait_ms( 500);
+    
+    //                ( int address, char *data, int length)
+    int ack = i2c.read( SLAVE_ADDRESS8BIT, result, responseSize);
 
-#define PIN5BITRED 0x02
-#define PIN6BITGREEN 0x01
-#define SPACE_CHAR ' '
-
-#define NO_DEBUG 0
-#define AUTO_DEBUG 1
-#define SWITCH_DEBUG 2
-
-#define DEBUG NO_DEBUG
+    printf( "cmd = %x, ", cmd);
+    printf( "result = %x\r\n", result);
+    
+    return ack;
+  }
 
 int main() 
-{
-    // Accept default format, of 8 bits, no parity;
-    async_port.baud( 9600);     // Set baud rate to 9600 (ie default).
-
-#ifdef DEBUG
-    switch_word = 0x00;
-#endif
-      
-    while (1)
-    {                                   
-#if DEBUG == AUTO_DEBUG
-        // Cycling the switch_word for testing.
-        switch_word = (switch_word + 1) % 4;
-#else  
-        //Set up the word to be sent, by testing switch inputs.
-                                   // Alternate between '!', '"', '#'.
-        switch_word = SPACE_CHAR;  // Set up a recognizable output pattern.
-
-        if (switch_ip5_red == 1)
-            switch_word |= PIN5BITRED;
-            
-        if (switch_ip6_green == 1)
-            switch_word |= PIN6BITGREEN;
-#endif      
-        // Print what we're sending.  Compare this to 
-        // what the other MPU prints for what it's receiving.
-        printf( "'%c': ", switch_word);
-        printf( "%x: ", switch_word);
-        printBin( switch_word);
-        printf( "    ");
+{        
+    int cmdsNdx = 0;
     
-        // My DSO Quad O'scope doesn't have a strobe Input.
-        // strobe = 1;                 // short strobe pulse.
-
-        wait_ms( 500);
-        // strobe = 0;
+    int ack = sendCommand( &(cmds[cmdsNdx++]), 1);
+  
+    if (ack == 0)
+        printf( "Slave is ID: %x\r\n", result[0]);
+    else
+        printf( "No response to ID request");
         
-        async_port.putc( switch_word);          // transmit switch_word.
-        
-        recd_val = SPACE_CHAR;
-        
-        if (async_port.readable() == 1)         // Is there a character to be read?
-            recd_val = async_port.getc();         // If yes, then read it.
-            
-#if DEBUG == SWITCH_DEBUG
-        recd_val = switch_word;
-#endif
-        
-        // Print what we're receiving.
-        // Compare this to what the other MCU prints out for what it's sending. 
-        printf( "'%c': ", recd_val);
-        printf( "%x: ", recd_val);
-        printBin( recd_val);
-        printf( "\r\n");
-
-        // Set leds according to the incoming word from the other MCU.
-        //
-        red_led = 0;                            // Preset both to 0.
-        green_led = 0;
-        recd_val = recd_val & 0x03;             // AND out unwanted bits.
-
-        // Set our lights accordingly.
-        if (recd_val & PIN5BITRED)
-            red_led = 1;
-
-        if (recd_val & PIN6BITGREEN)
-            green_led = 1;
+return 0;
+    
+    while (1) 
+    {
+       sendCommand( &(cmds[cmdsNdx]), 1);
+       
+       cmdsNdx = (cmdsNdx + 1) % (sizeof( cmds) / sizeof( char));
     }
+    
+    return 0;
 }
