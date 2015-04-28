@@ -1,0 +1,48 @@
+BEGIN
+--------------------------------------------------------------------
+1. What is the _mask value for LED1? 
+
+From PinNames.h:
+  LED1 = P1_18
+  Bit 18's mask = 
+  0x
+  0000 6789
+  0000 2345
+  0000 8901
+  0000 4567
+  0000 0123
+  
+  = 0b0100 0000 0000 0000 0000
+  = 0x40000
+  
+   What is the address of FIOSET?
+   LPC_GPIO_BASE (Port# * 0x20) + 8
+   LPC_GPIO_BASE = 0x2009C0000
+   
+--------------------------------------------------------------------
+2. What is the RS232 Frame?
+
+It is the block of bits (stop, start, parity) surrounding the data byte being
+transmitted, along with the data byte itself.
+
+--------------------------------------------------------------------
+3. Explain the start and stop conditions of i2c?
+
+Start = SCLK falls, and starts clocking.
+Stop  = SCLK rises, and stays up.
+
+--------------------------------------------------------------------
+4. Is the i2c acknowledge SDA LOW or SDA HIGH?
+
+It is a positive pulse = rising, then falling, as per:
+
+    http://www.gammon.com.au/forum/?id=10896
+	
+--------------------------------------------------------------------
+5. Tell me about the DDR3 write leveling Concept in one sentence.  
+   (ref: slides)
+
+   The clock is re-sampled and allowed to shift repeatedly to allow 
+   for differing termination to each back of memory.
+
+END
