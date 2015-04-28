@@ -28,13 +28,13 @@ enum {
     CMD_READ_ORANGE_D5 = 2,
     CMD_READ_GREEN_D8 = 3
 };
-char command;
+char command[32];
 
 void setup()
 {
   Serial.begin( 9600);  // start serial for output
   
-  command = 0;
+  command[0] = 0;
   pinMode( LED, OUTPUT);
   
   // SDA = A4 = ORANGE_WIRE.
@@ -48,10 +48,14 @@ void setup()
 }
 
 void receiveHandler( int howMany)
-{
-  command = Wire.read();  // remember command for when we get request
+{  
+  for (byte i = 0 ; i < howMany ; i++)
+  {
+    command[i] = Wire.read();
+  }
   
-  printHexCharWithMsg( "Received command = 0x", command);
+  printHexCharWithMsg( "Received command = 0x", command[0]);
+  printHexCharWithMsg( "howMany = 0x", howMany);
 } 
 
 void printHexCharWithMsg( char* msg, char hexChar)
