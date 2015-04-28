@@ -20,13 +20,12 @@
 #include "mbed.h"
 
           // vvv      vvv These are actually SDA2 & SCL2.
-I2C i2c( p28, p27); // I2C_SDA, I2C_SCL); 
+I2C i2c( p28,         p27); 
+//       I2C_SDA,     I2C_SCL); 
 //       ^^^ P0[27]   ^^^ P0[28].
 //Should ==  p28      ==  p27.
-//       ORANGE_WIRE  == GREEN_WIRE
-
-// To speed up the I2C Bus, 
-// i2c.frequency( int hz); sets the Bus frequency in Hz.
+//       ORANGE_WIRE  ==  GREEN_WIRE
+//Oscope Blue Clip,       Green Clip.
 
 const int SLAVE_ADDRESS7BIT = 0x2a;                   // 7 bit I2C address
 const int SLAVE_ADDRESS8BIT = SLAVE_ADDRESS7BIT << 1; // 8 bit I2C address.
