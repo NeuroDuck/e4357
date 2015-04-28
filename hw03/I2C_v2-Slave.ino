@@ -71,9 +71,10 @@ void setup()
   command = 0;
   pinMode( LED, OUTPUT);
   
-  // SDA = A4 = ORANGE_WIRE.
-  // SLC = A5 = GREEN_WIRE.
-  //
+  //                         O'scope:
+  // SDA = A4 = ORANGE_WIRE. Blue Clip
+  // SLC = A5 = GREEN_WIRE.  Green Clip.
+
   // I am a slave.
   Wire.begin( SLAVE_ADDRESS); // Join i2c bus (address optional for master).
   
