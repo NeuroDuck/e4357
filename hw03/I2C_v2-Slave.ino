@@ -21,8 +21,9 @@ const byte GREEN_PIN  = 8;
 
 // Adapted from:
 //   http://www.gammon.com.au/forum/?id=10896
+
+// Various commands we might get:
 //
-// various commands we might get
 enum {
     CMD_ID = 1,
     CMD_READ_ORANGE_D5 = 2,

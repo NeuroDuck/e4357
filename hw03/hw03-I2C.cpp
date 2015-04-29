@@ -53,7 +53,7 @@ int sendCommand( const char cmdNdx, const int responseSize)
     //       ( int address, const char *data, int length);
     i2c.write( SLAVE_ADDRESS8BIT, &(cmdCodes[cmdNdx]), 1);
     
-    wait_ms( 500);
+    wait_ms( 2);
     
     //                ( int address, char *data, int length)
     int ack = i2c.read( SLAVE_ADDRESS8BIT, result, responseSize);
@@ -66,7 +66,7 @@ int sendCommand( const char cmdNdx, const int responseSize)
 
 int main() 
 {        
-    int cmdNdx = 0;
+    int cmdNdx = 2;
     
     int ack = sendCommand( cmdNdx++, 1);
   
@@ -77,6 +77,8 @@ int main()
         else
             printf( "ack = %x, No response to ID request.", ack);
     }
+          
+return 0;
           
     sendCommand( cmdNdx++, 1);
     sendCommand( cmdNdx++, 1);
