@@ -143,3 +143,24 @@ Q: When the write() -> read() delay is increased from 190uS. to 200uS., why does
 In "Command #3-0-200uS.png" and "Command #3-1-200uS.png" we see two well-formed 
 conversations, this time returning a 0x0 state or a 0x1 state for the "Green Wire"
 on the Slave.
+
+I2C Decoding Update: 
+-------------------
+Due to accidently picking 0x55 as my Slave's ID#, I mis-diagnosed 
+Command-#1 (= return a const byte value) as needing a shorter delay
+between the i2c.write() and i2c.read() than the Slave's other commands
+need.
+
+As it turns out, they all need 200uS. delay between i2c.write() and 
+i2c.read(), as shown in "Logic Analyzer I2C-Command #1-200uS-0xdd.png".
+
+Interestingly, from the Slave's point of view, when this delay is 
+< 200uS., it's as if the i2c.read() never happened, as the Slave's 
+Wire.onRequest( requestHandler) is never called.
+
+Q: Does the Master/Slave's I2C circuitry need 200uS. to release SDA, 
+   etc., so the Bus will be ready to transact the i2c.read()?  Just
+   a few uS. makes a big difference, does the Slave's I2C circuitry 
+   need those few extra uS. to be ready to answer the i2c.read()?  
+   Is it because the SCLK is only 100kHz?
+
