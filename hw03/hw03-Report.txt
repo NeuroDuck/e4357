@@ -72,3 +72,74 @@ the "Orange" and the "Green" switches (actually wires) on the I2C Slave.
 
 I've confirmed that the wires' being plugged into "+" or "-" are 
 accurately reflected in the values returned to the I2C Master.
+
+Additional findings from reviewing I2C Logic Analyzer output:
+------------------------------------------------------------
+Command #1's answer (= just return a const myID#) is put onto the I2C Bus ~25uS 
+faster than answers to Commands #2-3 (= Get Pin State for Orange or Green wires).
+
+This seems to lead to the following situations, though I don't yet understand why:
+
+I.e., "Command #1-0uS.png" shows a bolluxed-up transaction, due to 0uS. delay between:
+    i2c.write( slaveAddr, cmd#1);
+and the:
+	i2c.read( slaveAddr, result);
+
+From the I2C window in that .png file, we can see:
+	Start
+	Read from 0x2a ACK'ed
+	Command for 0x2a is 0x1 ACK'ed
+	Stop
+	Start
+	Write from(?) 0x2a NACK'ed
+	Stop
+
+In comparison, when I increased the delay above to 1uS., the I2C window contains the
+results as shown in "Command #1-1uS.png", which seems to be a correctly-formed 
+conversation:
+	Start
+	Read from 0x2a ACK'ed
+	Command for 0x2a is 0x1 ACK'ed
+	Stop
+	Start
+	Write from 0x2A ACK'ed
+	Write value 0x55 NACK'ed
+	Stop
+
+Q: Is it typical that there is no ACK when the Master receives the Slave's response?
+
+Similarly, "Command #1-200uS.png" shows a correctly-formed execution of Command #1, 
+this time with a delay as above == 200uS.:
+	Start
+	Read from 0x2a ACK'ed
+	Command for 0x2a is 0x1 ACK'ed
+	Stop
+	Start
+	Write from 0x2a ACK'ed
+	Write value 0x55 NACK'ed
+	Stop
+
+Likewise "Command #2-0-200uS.png" shows a correct conversation, this time reading 
+a value of 0x0 from the "Orange Wire" on the Slave, which was also NACK'ed.
+
+Interestingly, "Command #2-1-100uS.png" shows what happens when I set the delay 
+above == 100uS.  100uS. seems to be too fast, as the response returned is gibberish, 
+as the expected values are 0x0 or 0x1.
+
+What I can't explain is why the gibberish is 0x55.  Perhaps this is some behavior 
+of the Slave's I2C implementation, I'm not sure.
+
+In any case, "Command #2-1-190uS.png" shows another incorrect conversation, this time
+for a 190uS. delay.  
+
+Comparing this to "Command #2-1-200uS.png", where the delay == 200uS.
+You can see the response data is now put onto the Bus ~150uS. later than 
+it was with a 190uS. delay, and it is now a valid value (0x1 in this case).
+
+Q: When the write() -> read() delay is increased from 190uS. to 200uS., why does the 
+   gap between the read() address <-> read() data dramatically increase from 20uS. to
+   ~150uS.?
+   
+In "Command #3-0-200uS.png" and "Command #3-1-200uS.png" we see two well-formed 
+conversations, this time returning a 0x0 state or a 0x1 state for the "Green Wire"
+on the Slave.
