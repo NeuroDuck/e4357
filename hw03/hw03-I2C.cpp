@@ -31,16 +31,19 @@ const int SLAVE_ADDRESS7BIT = 0x2a;                   // 7 bit I2C address
 const int SLAVE_ADDRESS8BIT = SLAVE_ADDRESS7BIT << 1; // 8 bit I2C address.
 
 enum {
+    CMD_DUMMY = 0,
     CMD_ID = 1,
     CMD_READ_ORANGE_D5 = 2,
     CMD_READ_GREEN_D8 = 3
 };
-char cmdCodes[3] = {
+char cmdCodes[4] = {
+    CMD_DUMMY,
     CMD_ID, 
     CMD_READ_ORANGE_D5, 
     CMD_READ_GREEN_D8 
 };
-char* cmdNames[3] = {
+char* cmdNames[4] = {
+    "dummy",
     "ID",
     "ORANGE_D5",
     "GREEN_D8"
@@ -53,13 +56,18 @@ int sendCommand( const char cmdNdx, const int responseSize)
     //       ( int address, const char *data, int length);
     i2c.write( SLAVE_ADDRESS8BIT, &(cmdCodes[cmdNdx]), 1);
     
-    wait_ms( 2);
-    
+    int wait_uS = 200;
+    wait_us( wait_uS);
+
     //                ( int address, char *data, int length)
-    int ack = i2c.read( SLAVE_ADDRESS8BIT, result, responseSize);
+    int ack = i2c.read( SLAVE_ADDRESS8BIT, result, responseSize, false);
 
     printf( "cmdCode = %d, ", cmdCodes[cmdNdx]);
-    printf( "%s = %x\r\n", cmdNames[cmdNdx], result[0]);
+    printf( "%s = 0x%x  ack = %d", cmdNames[cmdNdx], result[0], ack);
+    
+    if (cmdNdx != 1 && result[0] == 0x55)
+        printf( "  wait_uS( %d) is too fast.", wait_uS);
+    printf( "\r\n");
     
     return ack;
   }
@@ -69,15 +77,7 @@ int main()
     int cmdNdx = 2;
     
     int ack = sendCommand( cmdNdx++, 1);
-  
-    if (cmdNdx == 0)
-    {
-        if (ack == 0)
-            printf( "Slave is ID: %x\r\n", result[0]);
-        else
-            printf( "ack = %x, No response to ID request.", ack);
-    }
-          
+            
 return 0;
           
     sendCommand( cmdNdx++, 1);
