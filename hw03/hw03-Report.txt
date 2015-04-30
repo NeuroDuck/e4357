@@ -164,3 +164,12 @@ Q: Does the Master/Slave's I2C circuitry need 200uS. to release SDA,
    need those few extra uS. to be ready to answer the i2c.read()?  
    Is it because the SCLK is only 100kHz?
 
+I2C Decoding Update #2:
+----------------------
+This post there:
+
+    https://developer.mbed.org/forum/bugs-suggestions/topic/4254/?page=1#comment-21124
+
+talks about the I2C having 100kHz and 400kHz modes.  Perhaps if I can 
+enable the latter, I will no longer see the 200uS. delay-required 
+between i2c.write() and i2c.read() as described above.
