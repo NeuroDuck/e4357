@@ -74,7 +74,7 @@ int sendCommand( const char cmdNdx, const int responseSize)
 
 int main() 
 {        
-    int cmdNdx = 2;
+    int cmdNdx = 1;
     
     int ack = sendCommand( cmdNdx++, 1);
             

@@ -102,7 +102,7 @@ void appendByteToHex( char* msg, char b)
     result[0] = b + '0';
       
   if (b >= 10 && b <= 15)
-    result[0] = b + '0';
+    result[0] = b - 10 + 'a';
     
   strcat( msg, result);
 }
@@ -111,7 +111,7 @@ void printHexCharWithMsgBuffered( char* msg, char hexChar)
 {
   strcpy( bufferedMsg, msg);
   
-  appendByteToHex( bufferedMsg, hexChar >> 1);
+  appendByteToHex( bufferedMsg, (hexChar & 0xf0) >> 4);
   appendByteToHex( bufferedMsg, hexChar & 0x0f);
   strcat( bufferedMsg, "\n");
 }
@@ -127,7 +127,7 @@ void requestHandler()
 {
   printHexCharWithMsgBuffered( "Answering with results for command = 0x", command);
 
-  char myID = 0x55;
+  char myID = 0xdd;
   char orangeResult, greenResult;
 
   switch (command)
