@@ -25,6 +25,7 @@ const byte GREEN_PIN  = 8;
 // Various commands we might get:
 //
 enum {
+    CMD_DUMMY = 0,
     CMD_ID = 1,
     CMD_READ_ORANGE_D5 = 2,
     CMD_READ_GREEN_D8 = 3
@@ -85,10 +86,35 @@ void setup()
 
 void receiveHandler( int howMany)
 {
-  command = Wire.read();  // remember command for when we get request
+  // Remember the command for when we get request.
+  command = Wire.read();
   
   printHexCharWithMsg( "Received command = 0x", command);
 } 
+
+char bufferedMsg[80] = "";
+
+void appendByteToHex( char* msg, char b)
+{
+  char result[2] = " ";
+  
+  if (b >= 0 && b <= 9)
+    result[0] = b + '0';
+      
+  if (b >= 10 && b <= 15)
+    result[0] = b + '0';
+    
+  strcat( msg, result);
+}
+
+void printHexCharWithMsgBuffered( char* msg, char hexChar)
+{
+  strcpy( bufferedMsg, msg);
+  
+  appendByteToHex( bufferedMsg, hexChar >> 1);
+  appendByteToHex( bufferedMsg, hexChar & 0x0f);
+  strcat( bufferedMsg, "\n");
+}
 
 void printHexCharWithMsg( char* msg, char hexChar)
 {
@@ -99,7 +125,7 @@ void printHexCharWithMsg( char* msg, char hexChar)
 
 void requestHandler()
 {
-    printHexCharWithMsg( "Answering with results for command = 0x", command);
+  printHexCharWithMsgBuffered( "Answering with results for command = 0x", command);
 
   char myID = 0x55;
   char orangeResult, greenResult;
@@ -108,19 +134,25 @@ void requestHandler()
   {
   case CMD_ID:      
     Wire.write( myID); 
-    printHexCharWithMsg( "ID = 0x", myID);
+    printHexCharWithMsgBuffered( "ID = 0x", myID);
     break;   // send our ID 
     
   case CMD_READ_ORANGE_D5:
     orangeResult = digitalRead( ORANGE_PIN);
-    printHexCharWithMsg( "ID = 0x", orangeResult);
+    printHexCharWithMsgBuffered( "ORANGE_PIN = 0x", orangeResult);
     Wire.write( orangeResult);
     break;  // send ORANGE_PIN's state.
     
   case CMD_READ_GREEN_D8: 
     greenResult = digitalRead( GREEN_PIN);
+    printHexCharWithMsgBuffered( "GREEN_PIN = 0x", greenResult);
     Wire.write( greenResult);
     break;   // send GREEN_PIN's state.
+  
+  default:
+    printHexCharWithMsgBuffered( "unknown command = 0x", command);
+    Wire.write( 0xee);
+    break;   // send Error state.  
   }
 }
 
@@ -128,5 +160,9 @@ void requestHandler()
 
 void loop()
 {
-  // All done by interrupts.
+  if (strlen( bufferedMsg) > 0)
+  {
+    Serial.print( bufferedMsg);
+    strcpy( bufferedMsg, "");
+  }
 }
