@@ -1,0 +1,83 @@
+Assignment #4 Report:
+-------------------
+
+This assignment took about 5 hours to get Keil v5 debugging into my 1-line "Blinky LED" program.
+
+Issues along the way:
+--------------------
+The CMSIS-DAP Device wasn't visible under Control Panel->Devices and Printers.
+
+This turned out to be due to the way I downloaded the latest .if file to update the mbed's firmware.
+
+Referring to the links on this page:
+
+    https://developer.mbed.org/handbook/Firmware-LPC1768-LPC11U24
+
+Left- or right-clicking here:
+
+    https://developer.mbed.org/media/uploads/samux/mbedmicrontroller_141212.if
+
+produces a truncated (= 80-90 kB) .if file, which unfortunately (silently falsely) 
+appears to succeed when the user attempts to use it to update the Firmware.
+
+I found that left-clicking on the "..." here:
+
+    rev 141212 [ ... ] 
+
+does download a 133 kB .if file.
+
+Findings along the way:
+----------------------
+There were several "Options for Target 'mbed NXP LPC1768'" that tempted me to modify them, 
+which I came to reget, as they cause various kinds of grief, i.e., they prevent either the 
+downloading of the program, or the debugging of it.
+
+I list these "tempting" settings and their "functional" values below, save all of us future 
+grief.
+
+These are all accessible by either of:
+
+	Right-click on Project Tree->"mbed NXP LPC1768"->
+	"Options for target ..."
+
+	Click on the "Magic Wand" (= Options for Target...) button in the Build Toolbar.
+
+Device: none
+Target: none
+Output: none
+Listing: none
+
+User:
+	none
+	Interestingly, the "Start Debugging" checkbox does auto-start the Debugger 
+	after a Build, but not just when the "Load" button is clicked.
+
+C/C++: none
+Asm: none
+Linker: none
+
+Debug:
+	Use CMSIS-DAP Debugger->Settings->-Debug->Debug Box->Stop after Bootloader, when 
+	unchecked, says: "Cannot access target.".
+
+	Use CMSIS-DAP Debugger->Settings->-Debug->Download Options Box->Download to Flash, 
+	when checked, says: "Illegal address." at Debugging start-up.
+
+	Use CMSIS-DAP Debugger->Settings->Flash Download->Download Function Box->Reset and Run, 
+	doesn't seem to have any effect one way or the other.
+
+Q: What does the "Reset and Run" checkbox do?
+
+
+Assignment:
+----------
+
+
+Quiz:
+----
+I'll work on Quiz #4 next.
+
+Results/Solutions:
+-----------------
+They'll come from doing the Quiz, it's looking like.  More on that soon.
+

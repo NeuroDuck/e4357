@@ -141,7 +141,7 @@
             <RestoreMemoryDisplay>1</RestoreMemoryDisplay>
             <RestoreFunctions>0</RestoreFunctions>
             <RestoreToolbox>1</RestoreToolbox>
-            <RestoreTracepoints>0</RestoreTracepoints>
+            <RestoreTracepoints>1</RestoreTracepoints>
             <RestoreSysVw>1</RestoreSysVw>
           </Target>
           <RunDebugAfterBuild>0</RunDebugAfterBuild>
@@ -361,9 +361,9 @@
             <useXO>0</useXO>
             <VariousControls>
               <MiscControls>--gnu --no_rtti </MiscControls>
-              <Define> TARGET_LPC1768,  TARGET_M3,  TARGET_CORTEX_M,  TARGET_NXP,  TARGET_LPC176X,  TARGET_MBED_LPC1768,  TOOLCHAIN_ARM_STD,  TOOLCHAIN_ARM,  __CORTEX_M3,  ARM_MATH_CM3,  MBED_BUILD_TIMESTAMP=1430593186.59,  __MBED__=1,  __ASSERT_MSG, </Define>
+              <Define>TARGET_LPC1768,  TARGET_M3,  TARGET_CORTEX_M,  TARGET_NXP,  TARGET_LPC176X,  TARGET_MBED_LPC1768,  TOOLCHAIN_ARM_STD,  TOOLCHAIN_ARM,  __CORTEX_M3,  ARM_MATH_CM3,  MBED_BUILD_TIMESTAMP=1430593186.59,  __MBED__=1,  __ASSERT_MSG,</Define>
               <Undefine></Undefine>
-              <IncludePath>  .;  mbed;  mbed/TARGET_LPC1768;  mbed/TARGET_LPC1768/TOOLCHAIN_ARM_STD;  mbed/TARGET_LPC1768/TARGET_NXP;  mbed/TARGET_LPC1768/TARGET_NXP/TARGET_LPC176X;  mbed/TARGET_LPC1768/TARGET_NXP/TARGET_LPC176X/TARGET_MBED_LPC1768</IncludePath>
+              <IncludePath>.;  mbed;  mbed/TARGET_LPC1768;  mbed/TARGET_LPC1768/TOOLCHAIN_ARM_STD;  mbed/TARGET_LPC1768/TARGET_NXP;  mbed/TARGET_LPC1768/TARGET_NXP/TARGET_LPC176X;  mbed/TARGET_LPC1768/TARGET_NXP/TARGET_LPC176X/TARGET_MBED_LPC1768</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -412,7 +412,7 @@
             
               mbed/TARGET_LPC1768/TOOLCHAIN_ARM_STD/mbed.ar
             
-            </Misc>
+</Misc>
             <LinkerInputFile></LinkerInputFile>
             <DisabledWarnings></DisabledWarnings>
           </LDads>
