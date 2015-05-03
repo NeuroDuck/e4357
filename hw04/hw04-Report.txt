@@ -1,7 +1,9 @@
 Assignment #4 Report:
 -------------------
 
-This assignment took about 5 hours to get Keil v5 debugging into my 1-line "Blinky LED" program.
+This assignment took about 6 hours to get Keil v5 debugging into my 1-line "Blinky LED" program,
+and about 3 more hours to do the research to answer the Quiz #4 questions, and unscramble my 
+mistaken Keil Target Settings, as I describe below.
 
 Issues along the way:
 --------------------

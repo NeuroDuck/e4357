@@ -50,6 +50,9 @@ I would write code that does:
 		Time [process higher priority interrupt]
 		Time [OS book-keeping]
 		Time [Context Switch]
+		
+	so some averaging in various situations is called for as the above delays will vary
+	in different situations.
 
 --------------------------------------------------------------------
 Q3: Serial pc(USBTX, USBRX); // tx, rx 
@@ -67,8 +70,32 @@ From your WK4 Slides around pg. 24:
 
 TDO is an output.
 
-Tonight I wasn't able to find its bit patterns spec. 
-I'll look more on Sunday.
+It's one wire, so in that sense, it has 1 bit.
+
+In terms of how many bits clock out on that one wire per cycle...
+
+Referring to pg. 10 here:
+
+    http://www.ti.com/lit/ug/slau320r/slau320r.pdf
+	
+TDO seems to be 20 bits.
+
+I've also seen come up a few times the diagram on pg. 8 from here:
+
+    http://www.analog.com/media/en/technical-documentation/application-notes/ee-68.pdf
+	
+whcih make it look like the TDO is 11 bits(?).
+
+At last, I came across this:
+
+    JTAG port timing characteristics
+	http://infocenter.arm.com/help/topic/com.arm.doc.dui0517b/Cjaeccji.html
+	
+And Serial Wire Debug (SWD) is described here:
+
+	http://infocenter.arm.com/help/topic/com.arm.doc.dui0517b/yCHDBDBHI.html
+	
+So I don't yet have a definitive answer.
 
 --------------------------------------------------------------------
 Q5:
