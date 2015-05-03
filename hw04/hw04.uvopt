@@ -137,7 +137,7 @@
         <SetRegEntry>
           <Number>0</Number>
           <Key>CMSIS_AGDI</Key>
-          <Name>-X"MBED CMSIS-DAP" -U1010009e9b734ed242caeb326dee225d -O4559 -S0 -C0 -P00 -N00("ARM CoreSight SW-DP") -D00(2BA01477) -L00(0) -FO7 -FD10000000 -FC800 -FN1 -FF0LPC_IAP_512 -FS00 -FL080000</Name>
+          <Name>-X"MBED CMSIS-DAP" -U1010009e9b734ed242caeb326dee225d -O4559 -S0 -C0 -P00 -N00("ARM CoreSight SW-DP") -D00(2BA01477) -L00(0) -FO15 -FD10000000 -FC800 -FN1 -FF0LPC_IAP_512 -FS00 -FL080000</Name>
         </SetRegEntry>
         <SetRegEntry>
           <Number>0</Number>
@@ -149,7 +149,7 @@
         <Bp>
           <Number>0</Number>
           <Type>0</Type>
-          <LineNumber>10</LineNumber>
+          <LineNumber>11</LineNumber>
           <EnabledFlag>1</EnabledFlag>
           <Address>526</Address>
           <ByteObject>0</ByteObject>
@@ -165,7 +165,7 @@
         <Bp>
           <Number>1</Number>
           <Type>0</Type>
-          <LineNumber>7</LineNumber>
+          <LineNumber>8</LineNumber>
           <EnabledFlag>1</EnabledFlag>
           <Address>524</Address>
           <ByteObject>0</ByteObject>
@@ -229,6 +229,19 @@
       <bDave2>0</bDave2>
       <PathWithFileName>main.cpp</PathWithFileName>
       <FilenameWithoutPath>main.cpp</FilenameWithoutPath>
+      <RteFlg>0</RteFlg>
+      <bShared>0</bShared>
+    </File>
+    <File>
+      <GroupNumber>1</GroupNumber>
+      <FileNumber>2</FileNumber>
+      <FileType>5</FileType>
+      <tvExp>0</tvExp>
+      <Focus>0</Focus>
+      <tvExpOptDlg>0</tvExpOptDlg>
+      <bDave2>0</bDave2>
+      <PathWithFileName>.\CircularBuffer.h</PathWithFileName>
+      <FilenameWithoutPath>CircularBuffer.h</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>
