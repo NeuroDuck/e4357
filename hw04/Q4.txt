@@ -95,7 +95,15 @@ And Serial Wire Debug (SWD) is described here:
 
 	http://infocenter.arm.com/help/topic/com.arm.doc.dui0517b/yCHDBDBHI.html
 	
-So I don't yet have a definitive answer.
+For a slightly more definitive answer, I referred to the 4th (JTAG Instruction Register Chain) 
+diagram here:
+
+   http://www.fpga4fun.com/JTAG2.html
+   
+From that, my answer is...
+
+"The number of bits for TDO == the sum of the lengths of the TAP IR (or DR) Registers in all of the 
+ devices in the JTAG Chain."
 
 --------------------------------------------------------------------
 Q5:
