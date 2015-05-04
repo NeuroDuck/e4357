@@ -20,10 +20,28 @@ inline int CircularBufferIsFull( SmallCircularBuffer* que)
 
 inline int CircularBufferIsEmpty( SmallCircularBuffer* que) 
 {	
-		return que->isEmpty();
+	return que->isEmpty();
 }
 
 which due to my changes above, is fully-inline.
+
+Update:
+------
+The instructor asked me to not use the "Use a fill count", 
+as described here:
+
+    http://en.wikipedia.org/wiki/Circular_buffer#Use_a_Fill_Count
+	
+which the developer.mbed.com template class uses, and instead use
+one of the other approaches from that Wikipedia page.
+
+After reviewing the possibilities, this one seems to be the most 
+benefical to me in our situation:
+
+    http://en.wikipedia.org/wiki/Circular_buffer#Absolute_indices
+
+as I can accept the buffer-length being required to be a power-of-2, 
+in order to achieve the maximum efficiency.
 
 --------------------------------------------------------------------
 Q2: How to compute "Interrupt Latency"?
