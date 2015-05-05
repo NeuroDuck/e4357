@@ -37,6 +37,13 @@ Potential Goals/Sub-Tasks/Behaviors/Negative Sensor Feedback Loops:
 	calibration on top of a 36-arm Starfish-like Jig of thin Tape.  Both of these Jigs
 	I could draw in some graphics program, and just print them.
 	
+1b. To debug and calibrate the 3-axis Magnetometer (= Tilt-Compensated Compass) and 
+	wall-Following, I’ll implement an analog 2-Axis Joystick.
+	Pushing the Joystick around in a circle at full-scale deflection will command the 
+	Robot to Rotate either clockwise or counter-clockwise, and a smaller deflection 
+	(with no circular motion) will command the Robot to rotate to that heading, and 
+	start rolling at a speed proportional to the deflection.
+
 2. Once Rotation is as calibrated as it can be, I want to implement wall-following, 
    where the side-looking Sensors prevent gradually veering, either into, or away from,
    the wall that the Robot is following.
