@@ -1,6 +1,6 @@
 #include "mbed.h"
 #include "CircularBuffer.h"
-/*
+
 DigitalOut myled( LED1);
 
 int main() 
@@ -23,12 +23,11 @@ inline int CircularBufferIsEmpty( SmallCircularBuffer* que)
 {	
 		return que->isEmpty();
 }
-*/
 
 /* 
 * Enter a hex number [0-9a-fA-F]; Decode it in 4-bit binary format and display them on 4 on board leds. 
 */ 
-
+/*
 #include "mbed.h" 
 
 Serial pc(USBTX, USBRX); // tx, rx 
@@ -67,3 +66,4 @@ int main(void) {
 		DisplayLed(ch); 
 	} 
 }
+*/

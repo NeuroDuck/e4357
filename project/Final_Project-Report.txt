@@ -1,0 +1,74 @@
+Final Project Report:
+--------------------
+This assignment has taken about 02 hours so far.
+
+Project Description:
+-------------------
+Starting from "My Project Initial Notes.docx"...
+
+Implement some semi-autonomous behavior in my m3pi Robot,
+where "semi-autonomous" means:
+	independent exploratory behavior, 
+		with real-time ongoing reporting of location estimates and room dimensions
+	responding to queries
+	executing commands
+	
+Sensors to use:
+--------------
+I have several types of Sonar and IR Transceiver Sensors to draw from, as well as a 
+3-Axis Magnetometer, for which I have code that implements a Tilt-Compensated Compass
+on it.
+
+I propose having Sonar facing forward, and IR Transceivers pointing in the other three 
+directions, to detect/prevent tangential and backing-up collisions, and ensure parallel
+following of walls, with no veering towards or away from them.
+
+Potential Goals/Sub-Tasks/Behaviors/Negative Sensor Feedback Loops:
+------------------------------------------------------------------
+1. My first Sensor<->Robot Feedback Loop to implement is Robot Rotation tied to the 
+   Compass.  This will require using the existing m3pi Library to drive the wheels, 
+   line-follower Sensors, PZ Speaker, etc., and implementing I2C communication with 
+   my existing 3-Axis Magnetometer and its Tilt-Compensated Compass code.
+   
+1a. Calibration for Tire Scrub losses, etc., will be attempted by using the Sonar 
+    with some sort of Training Jig, i.e., one or two rings of Construction Paper with 
+	10-degree wide slots cut in them, where I rotate one ring, to progressively narrow 
+	the slots, and/or perhaps use the built-in Line-Following Sensors for rotational 
+	calibration on top of a 36-arm Starfish-like Jig of thin Tape.  Both of these Jigs
+	I could draw in some graphics program, and just print them.
+	
+2. Once Rotation is as calibrated as it can be, I want to implement wall-following, 
+   where the side-looking Sensors prevent gradually veering, either into, or away from,
+   the wall that the Robot is following.
+   
+3. Once wall-following is working as best it can, I'll try to implement wall distance 
+   measurement, to begin the task of creating an X-Y Coordinate System, in which to map 
+   the room.
+   The distance measurement will be based on combining counting wheel rotations, with 
+   Sonar measurements along a wall, to as great a distance as the Sonar can measure 
+   accurately.
+   
+4. Once some basic mapping data collection is working, I want to implement display of 
+   the data on a web page pushed out by the robot via a WiFly on it.  I'll try to
+   implement both Ad-Hoc and DHCP IP Addressing, in case UCSC Extension's Wi-Fi doesn't
+   allow a Server to be added to it.
+   
+5. Once I have implemented a basic Query & Response web page interface, I want to add 
+   either of a HTML5 canvas or svg tag, and in it both display the Robot's path and 
+   wall findings, as well as allow directional guidance to be input.
+   
+6. My ultimate GUI goal is to support multi-touch gestures in the map, i.e., Pinch for 
+   Zoom, and 2-finger Twist for rotating the Map.  Theoretically my Laptop's Touch 
+   Screen driver can deliver such events to applications, so it's a question if either 
+   Java Apps or some combination of Javascript+HTML5+whichever Browser can receive them.
+
+Issues to resolve along the way:
+-------------------------------
+
+
+Findings along the way:
+----------------------
+
+
+Results/Solutions:
+-----------------
