@@ -79,7 +79,20 @@ Issues to resolve along the way:
 
 Findings along the way:
 ----------------------
+Joystick:
+  I wanted to check for "unreachable coordinates" with my Joystick, as jerks in its 
+  output data may lead to my Robot crashing into the wall, zooming out of control, etc.
+  
+  The 1st graph in "x_and_y1_and_y2-scan-data.xlsx" shows when I dragged the Joystick 
+  from left to right, moved down a tiny bit, then did it again.  This shows pretty uniform 
+  coverage, except for Quadrant IV.
+  
+  For the 2nd graph in the .xlsx file, I dragged the Joystick top to bottom, moved right 
+  a tiny bit, then did it again. My first guess is that this shows the Y’s Pot. is very 
+  dirty, and has many dead spots.
 
+  I haven't used this Joystick before, so perhaps as I begin to use it more, it will 
+  become better behaved over time.  Hope so.
 
 Results/Solutions:
 -----------------
