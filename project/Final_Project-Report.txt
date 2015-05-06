@@ -93,6 +93,28 @@ Joystick:
 
   I haven't used this Joystick before, so perhaps as I begin to use it more, it will 
   become better behaved over time.  Hope so.
+  
+  I need to convey my Joystick output to my mbed input (via my XBee Dongle).  I was 
+  thinking about writing a little perl script that just reads from COM21 (= my Arduino
+  Nano) and writes what it read from there to COM27 (= my mbed).  Luckily, I found here:
+  
+      http://perlguru.com/gforum.cgi?post=43583;guest=
+	  
+  where it says that I need to open COM ports > COM9 with this syntax:
+	  
+	  open( PORT, "\\\\.\\COM21") || die( "open failed.\n");
+	  
+  So now in the Perl debugger, I can see my Joystick's output data as follows:
+  
+    DB<7> open( PORT, "\\\\.\\COM21") || die( "open failed.\n");
+
+	DB<9> p <PORT>
+		xVal: -2 :yVal: 1
+		xVal: 3 :yVal: 1
+		xVal: 15 :yVal: 3
+		xVal: 5 :yVal: 1
+		xVal: -4 :yVal: 1
+		[...]
 
 Results/Solutions:
 -----------------
