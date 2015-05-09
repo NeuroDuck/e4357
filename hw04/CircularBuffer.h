@@ -22,7 +22,7 @@ class CircularBuffer
             
             \note The return value cannot exceed max(length,capacity)
         */
-        uint32_t read(uint8_t *data, uint32_t length);
+        uint32_t read( uint8_t *data, uint32_t length);
         
         /** Writes data in buffer
         
@@ -32,7 +32,7 @@ class CircularBuffer
             
             \note The return value cannot exceed max(length,capacity)
         */
-        uint32_t write(uint8_t *data, uint32_t length);
+        uint32_t write( uint8_t *data, uint32_t length);
         
         /** Returns the total capacity of this buffer
             \return Capacity of buffer
