@@ -172,7 +172,9 @@ Help message in response to further commands.
 
 I'll google more to learn how to clean out the queue, so further commands can work.
 
-I'll need to remove the RTOS-centric parts, as it's bigger than the demo-Keil will allow.
+And it's bigger than the demo-Keil will allow, so once I get my near-term functionality 
+implemented (= the Robot is moving following my Joystick motions), I'll google a bit more 
+to find a non-RTOS version of this, that will fit into the demo-Keil.
 
 Results/Solutions:
 -----------------
