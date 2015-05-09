@@ -115,6 +115,64 @@ Joystick:
 		xVal: 5 :yVal: 1
 		xVal: -4 :yVal: 1
 		[...]
+		
+In setting up to use the mbed RPC Library that I described here:
+
+    https://groups.google.com/forum/#!topic/spring2015_e4357/Uxt0BtRg5BQ
+	
+I found that the mbed Cookbook entry that I referred to is now out-of-date, 
+so I found another RPC example that does work in developer.mbed.org/compiler 
+here:
+
+    https://developer.mbed.org/users/ban4jp/code/SerialRPC_rtos_example/docs/tip/
+
+I.e., in my main.cpp I have:
+
+    #include "mbed.h"
+    #include "rtos.h"
+    #include "SerialRPCInterface.h"
+    #include "RPCVariable.h"
+
+
+    float f = 42;
+    int   i = 43;
+    char  c = 'b';
+    RPCVariable<float> rpc_f(&f, "f");
+    RPCVariable<int> rpc_i( &i, "i");
+    RPCVariable<char> rpc_c(& c, "c");
+	
+	int main()
+	{
+		SerialRPCInterface rpc( USBTX, USBRX);
+	}
+	
+In my developer.mbed.org/compile program, I've imported these libraries:
+
+	mbed-rpc
+	mbed-rtos			// Not sure if this one is needed for our purposes.
+	RPCInterface-rtos	// I only use this because the other similar libraries don't compile.
+	
+In my Serial Terminal program (connected to my mbed), when I just hit the Enter key, 
+my mbed sends back this Help message:
+
+    c i f SPI Serial Timer PwmOut DigitalInOut DigitalOut DigitalIn RPC
+
+meaning that "c", "i", and "f" are my variables that I can query and set, 
+as well as typing /RPC/something, DigitalIn/something, etc., as shown here:
+
+/c/read		prints:
+b
+/f/read		prints:
+42
+/i/read		prints:
+43
+
+The caveat so far is that only the first of the above works, then it just prints out the 
+Help message in response to further commands.
+
+I'll google more to learn how to clean out the queue, so further commands can work.
+
+I'll need to remove the RTOS-centric parts, as it's bigger than the demo-Keil will allow.
 
 Results/Solutions:
 -----------------
