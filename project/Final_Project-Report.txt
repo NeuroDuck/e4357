@@ -238,7 +238,16 @@ This causes the same first error as above, but if you click "No",
 it lets the program run to hit your first breakpoint, rather than 
 stopping at the start just prior to entering main().
 
-More debugging results soon...
+Update:
+I should mention that the SerialRPCInterface Library receives RPC calls 
+via interrupts, rather than the polling approach in a while (1) loop 
+that you'll see here:
+
+    https://developer.mbed.org/questions/3897/AnalogIn-not-working-in-rpc/
+	
+	
+	
+	
 
 Results/Solutions:
 -----------------

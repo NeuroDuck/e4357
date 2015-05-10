@@ -346,9 +346,9 @@
             <uSurpInc>0</uSurpInc>
             <VariousControls>
               <MiscControls>--gnu --no_rtti </MiscControls>
-              <Define> TARGET_LPC1768,  TARGET_M3,  TARGET_CORTEX_M,  TARGET_NXP,  TARGET_LPC176X,  TARGET_MBED_LPC1768,  TOOLCHAIN_ARM_STD,  TOOLCHAIN_ARM,  __CORTEX_M3,  ARM_MATH_CM3,  MBED_BUILD_TIMESTAMP=1431225618.6,  __MBED__=1,  __ASSERT_MSG, </Define>
+              <Define> TARGET_LPC1768,  TARGET_M3,  TARGET_CORTEX_M,  TARGET_NXP,  TARGET_LPC176X,  TARGET_MBED_LPC1768,  TOOLCHAIN_ARM_STD,  TOOLCHAIN_ARM,  __CORTEX_M3,  ARM_MATH_CM3,  MBED_BUILD_TIMESTAMP=1431239731.66,  __MBED__=1,  __ASSERT_MSG, </Define>
               <Undefine></Undefine>
-              <IncludePath>  .;  RPCInterface;  mbed;  mbed/LPC1768;  mbed/LPC1768/ARM;  </IncludePath>
+              <IncludePath>  .;  RPCInterface;  m3pi;  mbed;  mbed/LPC1768;  mbed/LPC1768/ARM;  </IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -425,6 +425,13 @@
               <FileName>RPCFunction.cpp</FileName>
               <FileType>8</FileType>
               <FilePath>RPCInterface/RPCFunction.cpp</FilePath>
+              
+            </File>
+          
+            <File>
+              <FileName>m3pi.cpp</FileName>
+              <FileType>8</FileType>
+              <FilePath>m3pi/m3pi.cpp</FilePath>
               
             </File>
           
