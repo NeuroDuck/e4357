@@ -133,7 +133,6 @@ I.e., in my main.cpp I have:
     #include "SerialRPCInterface.h"
     #include "RPCVariable.h"
 
-
     float f = 42;
     int   i = 43;
     char  c = 'b';
@@ -175,6 +174,71 @@ I'll google more to learn how to clean out the queue, so further commands can wo
 And it's bigger than the demo-Keil will allow, so once I get my near-term functionality 
 implemented (= the Robot is moving following my Joystick motions), I'll google a bit more 
 to find a non-RTOS version of this, that will fit into the demo-Keil.
+
+Update:
+I finally realized (after much google'ing), that the newest version of the SerialRPCInterface
+code:
+
+	Description: https://developer.mbed.org/cookbook/RPC-Interface-Library
+	Code:        https://developer.mbed.org/users/MichaelW/code/RPCInterface/
+	
+is Version #8 (28 Jan 2012), as shown in developer.mbed.org/compiler, by right-clicking on
+this Library in Program Workspace under your program, choosing "Revisions...".
+
+That means that in order to get the SerialRPCInterface Library to compile, I need to 
+right-click on the mbed Library for my program, click on "Revisions...", and click on the 
+newest version prior to that date, and click on "Switch", which is Version #36 (26 Jan 2012).
+
+Once I switched to this ancient version of the mbed Library, the RPCInterface 
+(aka SerialRPCInterface) Library compiles just fine, though it still only works
+the first time I send it a query.  
+
+The good news is that now I can compile and debug into it in Keil.  If you have the 
+32kByte-limited version of Keil, rather than the 30-day-limited version, to get past
+the 302kByte-limit, I propose to comment out some of these lines:
+
+    SerialRPCInterface.cpp:40:
+	void SerialRPCInterface::_RegClasses(void){
+    //Register classes with base 
+>>> // Base::add_rpc_class<AnalogIn>();   <<<<<<<<<
+	// ... 
+	
+Comment out whichever of these add_rpc_class() calls for mbed capabilities that you won't 
+be using.  
+
+I.e., I commented them all out except for <AnalogOut>, and my Keil code size became 
+28080 bytes during linking, and 30680 bytes loaded into the mbed.
+
+Uncommenting out one add_rpc_class() call added 192 bytes during linking, and 228 bytes 
+loaded into the mbed, so you can calculate how many more add_rpc_class()'s you can 
+uncomment out, and still fit into the crippled Keil.
+
+Next I'll debug into it and try to see why it only replies to the first command.
+
+In Keil, I unchecked:
+
+  Options for Target->Debug->CMSIS-DAP Debugger->Settings->
+    Debug->Stop after Bootloader
+	
+Doing so causes this error:
+
+    Address execution break already exists, 
+	redefine existing breakpoint?
+	
+Clicking on either of No or Yes causes this error:
+
+    Cannot access target.
+	Shutting down debug session.
+	
+So I left that checked, and tried unchecking this instead:
+
+  Options for Target->Debug->Run to main()
+  
+This causes the same first error as above, but if you click "No",
+it lets the program run to hit your first breakpoint, rather than 
+stopping at the start just prior to entering main().
+
+More debugging results soon...
 
 Results/Solutions:
 -----------------

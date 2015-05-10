@@ -144,7 +144,7 @@
             <RestoreTracepoints>1</RestoreTracepoints>
             <RestoreSysVw>1</RestoreSysVw>
           </Target>
-          <RunDebugAfterBuild>1</RunDebugAfterBuild>
+          <RunDebugAfterBuild>0</RunDebugAfterBuild>
           <TargetSelection>12</TargetSelection>
           <SimDlls>
             <CpuDll></CpuDll>

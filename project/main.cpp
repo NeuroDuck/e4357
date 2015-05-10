@@ -1,33 +1,34 @@
 #include "mbed.h"
-#include "rtos.h"
+// #include "m3pi.h"
 #include "SerialRPCInterface.h"
-#include "RPCVariable.h"
 
-DigitalOut led1(LED1);
-DigitalOut led2(LED2);
+SerialRPCInterface rpcInterface( USBTX, USBRX);
 
-void led2_thread(void const *args)
+void ReadRange( char* input, char* output);
+RPCFunction RangeFinder( &ReadRange, "RangeFinder");
+
+void ReadRange( char* input, char* output)
 {
-    while (true) {
-        led2 = !led2;
-        Thread::wait( 1000);
-    }
+    //Format the output of the srf08 into the output string
+    sprintf( output, "%f", 42.42);
 }
 
+// First create the variables you wish to use.
+//
 float f = 42;
 int   i = 43;
 char  c = 'b';
-RPCVariable<float> rpc_f(&f, "f");
-RPCVariable<int> rpc_i( &i, "i");
-RPCVariable<char> rpc_c(& c, "c");
 
-int main()
+// Then attach them to an RPCVariable Object.
+//
+RPCVariable<float> rpc_f( &f, "f");
+RPCVariable<int>   rpc_i( &i, "i");
+RPCVariable<char>  rpc_c( &c, "c");
+
+int main() 
 {
-    SerialRPCInterface rpc( USBTX, USBRX);
-    Thread thread(led2_thread);
-
-    while (true) {
-        led1 = !led1;
-        Thread::wait(500);
-    }
+	rpcInterface.Enable();
+	
+	int a = 0;		// To have a line to set a breakpoint on.
+	  
 }
