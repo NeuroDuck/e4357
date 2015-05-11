@@ -11,9 +11,9 @@
 #include "mbed.h"
 #include "m3pi/m3pi.h"
 #include "SerialRPCInterface.h"
-/*
-SerialRPCInterface rpcInterface( USBTX, USBRX);
 
+SerialRPCInterface rpcInterface( USBTX, USBRX);
+/*
 void ReadRange( char* input, char* output);
 RPCFunction RangeFinder( &ReadRange, "RangeFinder");
 
@@ -24,7 +24,6 @@ void ReadRange( char* input, char* output)
 		strcpy( output, "abc");
 //    sprintf( output, "%f", 42.42);
 }
-*/
 
 // First create the variables you wish to use.
 //
@@ -37,9 +36,9 @@ char  c = 'b';
 RPCVariable<float> rpc_f( &f, "f");
 RPCVariable<int>   rpc_i( &i, "i");
 RPCVariable<char>  rpc_c( &c, "c");
+*/
 
-
-// m3pi mpi;
+m3pi mpi;
 
 int main() 
 {
@@ -56,9 +55,11 @@ int main()
 	// a RPCFunction()-registration Class that works.
 
 //		mpi.locate( 0,1);
-//		char msg[] = "USB RPC";
+//		char msg[] = "USB_RPC";
 //    mpi.print( msg, strlen( msg));
 	
-	int a = 0;		// To have a line to set a breakpoint on.
+   	int a = 0;		// To have a line to set a breakpoint on.
+	
+//		mpi.stop();
 	  
 }
