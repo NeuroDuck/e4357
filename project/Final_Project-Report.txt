@@ -240,14 +240,52 @@ stopping at the start just prior to entering main().
 
 Update:
 I should mention that the SerialRPCInterface Library receives RPC calls 
-via interrupts, rather than the polling approach in a while (1) loop 
-that you'll see here:
+via interrupts, which (I believe) is superior to the polling approach 
+in a while (1) loop that you can see here:
 
     https://developer.mbed.org/questions/3897/AnalogIn-not-working-in-rpc/
 	
+Update:
+Alas, my changes to RPCFunction.cpp were unsuccessful, so I'm setting that 
+aside for now in favor of implementing my next functional block, which is 
+the data path between my JoyStick+Arduino, to the m3pi left()/right() and 
+motor_left()/motor_right() RPC functions, which do work.
+
+To do this, I'll write a very small Perl "bridge" script, which will read
+the JoyStick's R+Theta values from COM23, and write the corresponding 
+m3pi-RPC commands to the mbed, first via USB on COM28, then later via XBee
+on COM20.  When I make that change, the corresponding mbed code change will
+be from:
+
+   SerialRPCInterface rpcInterface( USBTX, USBRX);
+to:
+   SerialRPCInterface rpcInterface( p28, p27);
+   
+as that's where the m3pi's Radio Socket's TXD and RXD connect to the mbed.
+
+I also have to further increase the noise rejection of the JoyStick program.
+I'm thinking of cutting its Theta output into 8 octants.  For the R value, 
+I'll first try cutting it down to be one of 5 values: 
+
+	< 75  = noise, i.e., ignore
+	next 1/3rd = 1/3rd of full-speed in the specified direction, after rotation
+				 with reference to the Tilt-Compensated Compass (= 3-axis Magnetometer)
+	next 1/3rd = 2/3ds of full speed, ditto.
+	last 1/3rd = full speed, ditto.	
+	> 900 = full-scale deflection, = Rotation mode, rather than Bearing mode.
+
+I'll parameterize the lower-noise and full-scale deflection thresholds and the 
+number of steps between zero-speed and full-speed, to simplify adjusting them
+in response to however noisy the JoyStick turns out to be in actual use.
+
+I found that these noise-filtering settings worked well for this particular JoyStick:
+
+	const int numThetaSectors = 8;
+	const int noiseCeiling    = 120;
+	const int fullScaleFloor  = 900;
+	const int numRadiusRanges = 8;
 	
-	
-	
+I also added a check to prevent unwanted points when the JoyStick is snapping back to center.
 
 Results/Solutions:
 -----------------
