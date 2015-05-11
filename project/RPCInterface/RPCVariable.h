@@ -66,11 +66,11 @@ public:
     void write(T value){
         *_ptr = value;
     }
-
-                                                                                   #ifdef MBED_RPC
+		
+    #ifdef MBED_RPC
     virtual const struct rpc_method *get_rpc_methods();    
     static struct rpc_class *get_rpc_class();
-                     #endif
+    #endif
 
 private:
     T * _ptr;
@@ -78,9 +78,11 @@ private:
 };
 
 //Set up RPC methods
+
 #ifdef MBED_RPC
 template <class T>
-    const rpc_method *RPCVariable<T>::get_rpc_methods() {
+    const rpc_method *RPCVariable<T>::get_rpc_methods() 
+		{
        static const rpc_method rpc_methods[] = {
         { "read", rpc_method_caller<T, RPCVariable, &RPCVariable::read> },
         { "write", rpc_method_caller<RPCVariable, T, &RPCVariable::write> },
@@ -88,15 +90,23 @@ template <class T>
       };
       return rpc_methods;
     }       
+		
     template <class T>
-    rpc_class *RPCVariable<T>::get_rpc_class() {
-        static const rpc_function funcs[] = {"new", rpc_function_caller<const char*, T,const char* , &Base::construct<RemoteVar, T ,const char*> >,RPC_METHOD_END};
+    rpc_class *RPCVariable<T>::get_rpc_class() 
+		{
+        static const rpc_function funcs[] = {
+					"new", rpc_function_caller<
+						const char*, T, const char* , 
+						&Base::construct<RemoteVar, T, const char*>
+					>, RPC_METHOD_END
+				};
         static rpc_class c = { "RPCVariable", funcs, NULL };
         return &c;
     }
 #endif
 
-//There could be specialisation for integer, to also give increment and decrements
+// There could be specialisation for integer, to also give increment and 
+// decrements.
 
 
 #endif  //RPCVARIABLE_H_

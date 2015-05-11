@@ -92,18 +92,34 @@
     
 
     //Just run the attached function using the string thats in private memory - or just using null values, 
-    char * RPCFunction::run(char * input){
-        strcpy(_input, input);
-        (*_ftr)(_input,_output);
-        return(_output);
+    char * RPCFunction::run(char * input)
+		{
+        strcpy( _input, input);
+			
+        (*_ftr)( _input, _output);
+			
+        return( _output);
     }
     
     //Just read the output string
-    char* RPCFunction::read(){
-        return(_output);
+    char* RPCFunction::read()
+		{
+        return( _output);
     }
-    
-    
+  
+    #ifdef MBED_RPC
+		const rpc_method *RPCFunction::get_rpc_methods() 
+		{
+			static const rpc_method rpc_methods[] = {
+				{ "run", rpc_method_caller<char*, RPCFunction, char*, &RPCFunction::run> },
+//        { "read", rpc_method_caller<RPCFunction, float, &RPCFunction::read> },
+		        RPC_METHOD_SUPER(Base)
+      };
+			
+      return rpc_methods;
+		}
+		#endif
+/*
     #ifdef MBED_RPC
     const rpc_method *RPCFunction::get_rpc_methods() 
     {
@@ -114,5 +130,5 @@
       };
       return rpc_methods;
     }       
-
-#endif
+		#endif
+	*/
