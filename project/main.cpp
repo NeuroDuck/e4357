@@ -54,9 +54,9 @@ int main()
 	// the mp3i Library's approach, and then hopefully we'll have 
 	// a RPCFunction()-registration Class that works.
 
-//		mpi.locate( 0,1);
-//		char msg[] = "USB_RPC";
-//    mpi.print( msg, strlen( msg));
+		mpi.locate( 0,1);
+		char msg[] = "USB_RPC";
+    mpi.print( msg, strlen( msg));
 	
    	int a = 0;		// To have a line to set a breakpoint on.
 	

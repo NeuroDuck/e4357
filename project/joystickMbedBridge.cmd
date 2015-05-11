@@ -17,14 +17,18 @@ $usage =
 	
 $fromPort = shift;
 $toPort   = shift;
-	
-open( IN, "\\\\.\\".$fromPort) || 
-	die( "Couldn't open port \"$fromPort\" for reading.\n");
 
-open( OUT, ">", "\\\\.\\".$toPort) || 
-	die( "Couldn't open port \"$toPort\" for writing.\n");
+# open( IN, "\\\\.\\".$fromPort) || 
+#	die( "Couldn't open port \"$fromPort\" for reading.\n");
+
+ open( OUT, "+>", "\\\\.\\".$toPort) || 
+	die( "Couldn't open port \"$toPort\" for reading+writing.\n");
 	
+$ofh = select( OUT); $| = 0; select( $ofh);
+print( "select call returned.\n");
 	
+# sysopen( OUT, $toPort, O_RDWR) ||
+#	die( "Couldn't open port \"$toPort\" for writing.\n");
 
 $a = 0;
 $currentDir = 0;
