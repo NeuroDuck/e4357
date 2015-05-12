@@ -312,6 +312,44 @@ I only wish I had soldered these stackable headers:
 onto the Fio instead of the usual ones, as then it would be much easier to 
 wire up the Fio.
 
+Update:
+------
+Programming the Fio with the USB Bub above works fine, and I can 
+communicate with the Fio's running program via XBee as well, but
+I can't yet program it via XBee.
+
+To get the Wireless Programming of the Fio working, I'm following the 
+steps in the web pages below, which I'll summarize here:
+
+Referring to these photos...
+
+    Fio Wireless Programming Soldering Steps-p1.jpg
+    Fio Wireless Programming Soldering Steps-p2.jpg
+
+On the Fio (mine's board is black), there is a very tiny solder jumper point, 
+that needs to be closed to support Wireless Programming.
+
+It may or may not already be soldered in when you buy your Fio.  It doesn't
+need a wire to close the gap, only a very tiny solder blob.
+
+Your XBee carrier board needs to have a very short wire jumper soldered between
+the RTS pad and the Data IO Pin 3 pad.
+
+Solder the wire on the opposite side of the XBee carrier board from where the 
+XBee socket is, so you can easily see that the jumper is in place, without 
+having to remove the XBee to check.
+
+If you're using Windows, do this step, which I'm quoting from here:
+
+    http://www.jeffhoefs.com/2013/06/wireless-firmata-using-xbees/
+	
+    In the Device Manager, select the USB COM port. 
+	Then right click and select Properties. Click on the Port Settings tab, 
+	and click on Advanced..., then make sure "Set RTS On Close" is selected 
+	and click OK to apply settings. 
+	(these instructions copied from http://arduino.cc/en/Main/ArduinoBoardFioProgramming)
+	
+
 
 
 
