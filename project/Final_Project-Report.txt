@@ -349,10 +349,95 @@ If you're using Windows, do this step, which I'm quoting from here:
 	and click OK to apply settings. 
 	(these instructions copied from http://arduino.cc/en/Main/ArduinoBoardFioProgramming)
 	
+I also got some valuable info from here:
 
+	https://www.sparkfun.com/tutorials/122
 
+Referring to those directions above, I updated my XBee's firmware by doing the
+following:
 
+	Run X-CTU from digi.com, and inside it, ...
+	Click on Modem Configuration->Modem Parameter and Firmware->Read, 
+	to determine current firmware version and settings
+	Click on on Modem Configuration->Versions->Download new versions.  
+	It took quite a while to do that, seemingly downloading every firmware 
+	version for every Digi product in the known universe.
+	Click on the Version pull-down menu, and choose the newest version.
+	Check the "Modem Parameter and Firmware"->"Always Update Firmware" checkbox.
+	Click on "Modem Parameter and Firmware"->Write.
+	
+Once I'd upgraded my firmware, I next used X-CTU to change the following for my 
+Remote unit:
 
+	Networking & Security->PAN ID->(my id#, anything in the range: 0-0xffff)
+    RF Interfacing->Power Level->(0) Lowest
+	Serial Interfacing->Interface Data Rate->(6) 57600 baud
+	(57600 is the baud rate used by the Fio's Bootloader, 
+	 which is why this speed is used)
+	 
+	I/O Settings->D3->(5) DO HIGH		# Digital Output, active-high.
+	I/O Settings->IU->(0) DISABLED
+	I/O Settings->I/O Line Passing->(FFFF)->Set->OK
+	
+	Networking & Security->MY 16-bit Source Address->(1) This is unit #1.
+	
+then clicked on "Modem Parameter and Firmware"->Write.
+
+For my Base unit, I did the same, except for:
+
+	I/O Settings->D3->(5) DI	# = Digital Input.
+	I/O Settings->DIO Change Detect->(8) # = 0b1000, which is Pin 3
+	(no I/O Line Passing change for the Base unit)
+	(no Power Level change for the Base unit)
+	(no Source Address change for the Base unit)
+
+	Networking & Security->Destination Address High & Low = ffff
+	
+From here:
+
+	http://www.arduino.cc/en/Main/ArduinoBoardFioProgramming
+	
+I added in the Base settings:
+
+	Networking & Security->XBee Retries->(3)
+	Serial Interfacing->Packetization Timeout->(10)
+	
+For safe-keeping, I clicked on Modem Configuration->Profile->Save, and saved
+a .pro file for both my Base and Remote XBees' configuration.
+
+If you change the Baud Rate, after you write the new settings to your XBee, 
+in X-CTU, go back to PC Settings->Com Port Setup->Baud, change it to your 
+new speed, and click on Test/Query.
+
+If all went well, it will say, "Success".  If not, try changing the Baud
+pull-down menu back to the original speed (usually 9600), and click on 
+Test/Query again.
+
+Back in:
+
+    https://www.sparkfun.com/tutorials/122#Step4
+	
+makes a start at explaining how all this DIO3-fiddling in X-CTU works, to 
+facilitate Wireless Programming.
+
+It's explained a bit more thoroughly here:
+
+    http://www.arduino.cc/en/Main/ArduinoBoardFioTips
+
+Here:
+
+	http://forum.arduino.cc/index.php?topic=123835.0
+	
+it also suggests doing this to both units in X-CTU:
+
+	I/O Settings->DIO7->(0) Disable CTS Flow Control
+	
+I'm going to try first without this though.
+
+Some more of the above info is spelled out here:
+
+	http://www.semifluid.com/2012/09/07/arduino-fio-low-power-setup/
+	
 
 
 
