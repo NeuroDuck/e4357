@@ -287,5 +287,37 @@ I found that these noise-filtering settings worked well for this particular JoyS
 	
 I also added a check to prevent unwanted points when the JoyStick is snapping back to center.
 
+Update:
+------
+I'm attempting to abandon the Perl JoyStick->mbed Bridge script in favor of
+hosting the JoyStick on an Arduino Fio, which will communicate with the mbed
+via XBee.
+
+Initially, I'm programming the Fio using this:
+
+   http://moderndevice.com/product/usb-bub-i/
+   
+which I've jumper'ed to output 3 Volts to the Fio (both Data lines and Vcc), 
+as it's a 3V part.
+
+The photo "Arduino-Fio Joystick vs. Arduino-Nano Joystick.jpg" shows the 
+new Fio JoyStick hosting arrangement in the foreground (the small red board 
+is the FTDI programmer), and the old Nano host (plus XBee carrier, which is
+built into the back of the Fio).
+
+I only wish I had soldered these stackable headers:
+
+    http://shop.evilmadscientist.com/partsmenu/251
+	
+onto the Fio instead of the usual ones, as then it would be much easier to 
+wire up the Fio.
+
+
+
+
+
+
+
+
 Results/Solutions:
 -----------------

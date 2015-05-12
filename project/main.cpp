@@ -12,7 +12,8 @@
 #include "m3pi/m3pi.h"
 #include "SerialRPCInterface.h"
 
-SerialRPCInterface rpcInterface( USBTX, USBRX);
+// SerialRPCInterface rpcInterface( USBTX, USBRX);
+SerialRPCInterface rpcInterface( p28, p27);
 /*
 void ReadRange( char* input, char* output);
 RPCFunction RangeFinder( &ReadRange, "RangeFinder");
