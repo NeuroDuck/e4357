@@ -6,11 +6,11 @@ FE
 0
 [A]CH=C
 [A]ID=725
-[A]DH=FFFFFFFF
-[A]DL=FFFFFFFF
+[A]DH=0
+[A]DL=FFFF
 [A]MY=0
 [A]MM=0
-[A]RR=0
+[A]RR=3
 [A]RN=0
 [A]NT=19
 [A]NO=0
@@ -30,10 +30,10 @@ FE
 [A]SO=0
 [A]BD=6
 [A]NB=0
-[A]RO=3
+[A]RO=10
 [A]AP=0
 [A]D8=0
-[A]D7=1
+[A]D7=0
 [A]D6=0
 [A]D5=1
 [A]D4=0

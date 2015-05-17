@@ -438,8 +438,75 @@ Some more of the above info is spelled out here:
 
 	http://www.semifluid.com/2012/09/07/arduino-fio-low-power-setup/
 	
+Update:
+------
+
+I was reading here on XBees:
+
+	https://www.parallax.com/sites/default/files/downloads/32400-XBee-USB-Adapter-Documentation-v1.0.pdf
+    https://davidbeath.com/posts/reading-xbee-rssi-with-arduino.html
+	
+and thought it might be good to perform this procedure:
+
+	Test Communications Link and Establish a Network: Perform a Range Test
+
+as described here:
+	
+	http://ftp1.digi.com/support/documentation/90002160_A.pdf
+	
+I made a few screenshots here:
+
+	"XBee-USB Cable-Trim off corner to fit XBee Carrier-p1.png"
+	"XBee-USB Cable-Trim off corner to fit XBee Carrier-p2.png"
+
+showing how I had to trim off the corner of the USB cable's plug, to allow
+it to fit when plugging it into the small XBee carrier board.
+
+To perform the test on pg. 12, I added a jumper between DIN and DOUT on the 
+XBee carrier board.
+
+In "XBee-Loopback Testing-p1.png", you can see the jumper I added above on 
+the "Remote" XBee.
+
+To maximize my Robot's Battery Life, I set the Remote XBee's "RF Interfacing->
+Power Level" to (0)-LOWEST.
+
+With this setting, I found that dropped very few packets with the Remote XBee
+as far away as in the next room, and was able to keep at least intermittent 
+communication up (= the RSSI light stayed on) until I finally entered the room 
+at the opposite end of my home.
+
+In the future, I'll want to configure API mode as described in the .pdf file 
+above, and as described here:
+
+	http://knowledge.digi.com/articles/Knowledge_Base_Article/Digi-API-Frame-Maker
+	
+but that can wait for now.
+
+Lastly, the XBee's ignal Strength (via the PWM signal on its RSSI pin) can be 
+monitored as described here:
+
+	http://letsmakerobots.com/node/37243
+	http://log.liminastudio.com/itp/physical-computing/measuring-xbee-signal-strength-from-the-rssi-pin
+	https://davidbeath.com/posts/reading-xbee-rssi-with-arduino.html
+	
+	
+	
+	
+	
 
 
+
+
+
+
+
+
+
+
+
+
+	
 
 
 Results/Solutions:
