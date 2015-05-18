@@ -490,23 +490,25 @@ monitored as described here:
 	http://log.liminastudio.com/itp/physical-computing/measuring-xbee-signal-strength-from-the-rssi-pin
 	https://davidbeath.com/posts/reading-xbee-rssi-with-arduino.html
 	
+Update:
+------	
 	
-	
-	
-	
+After doing the above, in my Serial Terminal program I clicked on-and-off the RTS 
+signal, which is what the Arduino IDE does to signal the Arduino's Bootloader that 
+it's time to receive a new program.
 
+I used an LED+Resistor to confirm on my XBee USB dongle that its RTS pin (now 
+jumper'ed to XBee pin DIO3) is toggling when I click on my Serial Terminal's RTS 
+button.  
 
+I followed that by using the LED to confirm that on the "Remote" XBee its DIO3 is 
+also toggling when I click the Serial Terminal's RTS button.
 
+Lastly, I installed the XBee on the Arduino FIO, and confirmed that the DIO3 pin
+is still toggling in sync with the clicking the Serial Terminal's RTS button.
 
+After all this, I tried Wireless Programming the Fio again, and now it works :=).
 
-
-
-
-
-
-
-
-	
 
 
 Results/Solutions:
