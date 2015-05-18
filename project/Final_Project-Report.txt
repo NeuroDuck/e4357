@@ -509,7 +509,13 @@ is still toggling in sync with the clicking the Serial Terminal's RTS button.
 
 After all this, I tried Wireless Programming the Fio again, and now it works :=).
 
+Update:
+------
 
+Checking in first working code that drives the Robot via XBee from a JoyStick 
+connected to an Arduino Fio, as shown in:
+
+	"mbed Controlled via XBee by JoyStick connected to Arduino Fio.png"
 
 Results/Solutions:
 -----------------
