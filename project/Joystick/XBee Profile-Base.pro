@@ -21,7 +21,7 @@ FE
 [A]A2=0
 [A]EE=0
 [A]NI= 
-[A]PL=4
+[A]PL=0
 [A]CA=2C
 [A]SM=0
 [A]ST=1388

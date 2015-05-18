@@ -30,7 +30,8 @@ int prevHorizontal = 0, prevVertical = 0;
 int horizontal, vertical;
 double xVal  = 0, yVal = 0;
 int rVal0 = 0, rVal = 0, prevRval = -1;
-double thetaVal0 = 0, thetaVal = 0, prevThetaVal = -1.0;
+double thetaVal0 = 0, prevThetaVal = -1.0;
+int thetaVal = 0;
 
 // To further increase the noise rejection of the JoyStick program,
 // I'm thinking of cutting its Theta output into 8 sectors.  
@@ -166,19 +167,28 @@ boolean get_R_Theta()
   return changed;
 }
 
-#define SETBUTTON 4
+#define SETDIRBUTTON 4
 
 void setup()
 {
-  Serial.begin( 9600);
+  // Non-Fio Serial startup.
+  //
+//  Serial.begin( 9600);
+
+  // Fio needs to start this way to support Wireless Programming.
+  //
+  Serial.begin( 57600);
+//  Serial.println( 255);
   
   // Our "Set" Button.
   // It has a 10k Ohm pull-up resistor,
   // so LOW == Button is being pushed.
   //
-  pinMode( SETBUTTON, INPUT);      
+  pinMode( SETDIRBUTTON, INPUT);      
 
   setSpeedRangeValues();  
+  
+//  debugPrint();
 }
 
 int buttonState;
@@ -207,17 +217,24 @@ void debugPrint()
   Serial.print( " thetaVal0: ");
   Serial.print( thetaVal0, 0);
   Serial.print( " thetaVal: ");
-  Serial.println( thetaVal, 0);
+  Serial.println( thetaVal, 4);
+}
+
+void mbedPrint()
+{
+  Serial.print( rVal, DEC);
+  Serial.print( " ");
+  Serial.println( thetaVal - numSectors, DEC);
 }
 
 void loop() 
-{
+{  
   if (!get_R_Theta())
     return;
     
-  buttonState = digitalRead( SETBUTTON);
+  buttonState = digitalRead( SETDIRBUTTON);
   
-  debugPrint();
+  mbedPrint();
 
   delay( 250);
 }  
