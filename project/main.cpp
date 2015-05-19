@@ -193,6 +193,8 @@ int main()
 				if (bufLen >= BUFLEN || c == '\r' || c == '\n')
 				{
 					processCmd( buf);
+					wait_ms( 250);
+					
 					bufLen = 0;
 					pc.printf( "\r");
 				}
