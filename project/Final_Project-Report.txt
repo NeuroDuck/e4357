@@ -533,14 +533,22 @@ The "Base" Profile is configured to set the Base XBee's DIO3 pin as an input, an
 propagate the data that is input into that pin (i.e., from your PC's USB cable), 
 outward through the radio to all of the slaves.
 
-The "Remote" Profile is configured to receive DIO3 data from the radio and output
-that data on its DIO3 pin.  I.e., on the Arduio Fio, the XBee's DIO3 Output 
+The "Remote" Profile is configured to set the Remote XBee's DIO3 pin as an output, 
+and to receive data via the radio from the Base XBee's DIO3 pin, and output that 
+data on the Remote XBee's DIO3 pin.
 
+I.e., on the Arduio Fio, the XBee's DIO3 Output pin is wired to the MCU's Reset pin,
+with a small capacitor in series, to give the Remote's MCU Reset pin a short pulse, 
+when the XBee's DIO3 signal drops and stays low.
 
+I want to have multiple Robots collaborate on doing various tasks, i.e., as described
+here:
+
+	http://www.cliffolling.com/ArukuGo/
+    http://letsmakerobots.com/node/35134
 	
-
-
-
+So I'll update again if I have time to look into either of XBee API or Mesh 
+communication modes.
 
 Update:
 ------
