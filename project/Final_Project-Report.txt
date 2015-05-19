@@ -512,6 +512,39 @@ After all this, I tried Wireless Programming the Fio again, and now it works :=)
 Update:
 ------
 
+Moral: Just use my Profile (.pro) files to program your XBee's, rather than subjecting
+	   yourself to all the headaches that I encountered above:
+
+	https://github.com/NeuroDuck/e4357/tree/master/project/Joystick/
+		XBee Profile-Base.pro  
+		XBee Profile-Remote.pro
+
+Use the "Base" Profile (.pro file) as is, in digi.com's X-CTU XBee programming tool,
+to program the XBee which will be directly connected to your PC.  Its node id# is 0.
+
+Use the "Remote" Profile (.pro file) to program the XBees that you connect to each of 
+your slaves.  The node id# in this Profile is 1.  Increment the node id# prior to 
+programming the XBee of any slave.
+
+Both Profile (.pro) files are configured for "Lowest Transmission Power Level", to save
+battery life in the embedded application.
+
+The "Base" Profile is configured to set the Base XBee's DIO3 pin as an input, and to 
+propagate the data that is input into that pin (i.e., from your PC's USB cable), 
+outward through the radio to all of the slaves.
+
+The "Remote" Profile is configured to receive DIO3 data from the radio and output
+that data on its DIO3 pin.  I.e., on the Arduio Fio, the XBee's DIO3 Output 
+
+
+	
+
+
+
+
+Update:
+------
+
 Checking in first working code that drives the Robot via XBee from a JoyStick 
 connected to an Arduino Fio, as shown in:
 
