@@ -42,8 +42,125 @@ int minI( int i, int j)
   return i;
 }
 
-const int numRadiusBands  = 8;
-const int numThetaSectors = 8;
+const int numRadiusBands  = 9;
+const int numThetaSectors = 16;
+
+const int numSpeedRanges = numThetaSectors / 4;
+int wheelRatios[numSpeedRanges];
+
+const int wheelRatioStep = 50 / numSpeedRanges;
+
+// wheelRatios[0] is a placeholder for Rotation.
+//
+void populateWheelRanges()
+{
+	int i;
+	for (i = 1 ; i < numSpeedRanges ; i++)
+	{
+		wheelRatios[i] = wheelRatioStep * i;
+	}
+	wheelRatios[i] = 50;	// Ensure that we can drive straight :-).
+}
+
+//                    forward
+//                       4
+// slight left         5   3   slight right
+// medium left       6       2    medium right
+// hard leftFwd    7           1     hard rightFwd
+// rotate left   8               0      rotate right
+// hard leftBkwd   9          15     hard rightBkwd
+//                  10      14
+//                    11  13
+//                      12
+//                   backward
+//
+//
+const int halfNumThetaSectors = numThetaSectors / 2;
+
+const int leftMostForwardTheta   = halfNumThetaSectors - 1;
+const int leftMostBackwardTheta  = halfNumThetaSectors + 1;
+const int rightMostBackwardTheta = numThetaSectors - 1;
+// const int rightMostForwardTheta  = 1;
+
+const int forwardTheta  = halfNumThetaSectors / 2;
+const int backwardTheta = forwardTheta + halfNumThetaSectors;
+const int rotateLeftTheta = halfNumThetaSectors;
+const int rotateRightTheta = 0;
+
+void turn( int r, int theta)
+{
+	if (r == 0)
+	{
+		mpi.stop();
+		return;
+	}
+	
+	// -1 == backward, and 1 == forward, as this simplifies creating the 
+	// m3pi::motor() speed argument.
+	//
+	// Similarly, I changed:
+	//   private: m3pi::motor( int motor, float speed);
+	// to be public, so I can pass a calculated value for the motor#,
+	// to simplify the code for turning left vs. right.
+	//
+	int minusOneMovingBackwardPositiveOneForward = 
+		(theta >= leftMostBackwardTheta && 
+		 theta <= rightMostBackwardTheta) ? -1 : 1;
+	
+	// Are we rotating rather than moving?
+	if (theta == rotateLeftTheta || theta == rotateRightTheta)
+		minusOneMovingBackwardPositiveOneForward = 0;
+
+	int turningLeftNotRight = 
+		(theta > forwardTheta && theta < backwardTheta) ? 1 : 0;
+	
+	// Forward = wheel speeds are 50:50, so all 4 slower wheels'
+	// ratios are: 50, 37, 25, 12, and the other wheel = (100 - that).
+		
+	// Mirror us up from Quadrant III & IV into II & I, for easier 
+	// indexing into wheelRatios[].
+	//
+	if (minusOneMovingBackwardPositiveOneForward < 0)
+		theta = leftMostForwardTheta - (theta - leftMostBackwardTheta);
+	
+	// Mirror us right from Quadrant II into Quadrant I, for easier 
+	// indexing into wheelRatios[].
+	//
+	if (turningLeftNotRight)
+		theta = halfNumThetaSectors - theta;
+	
+	// Are we rotating?
+	if (minusOneMovingBackwardPositiveOneForward == 0)
+	{
+		float rotationSpeed = (float)r / numRadiusBands / 4;
+		
+		mpi.motor( 1 - turningLeftNotRight,  rotationSpeed);
+		wait_ms( 50);
+		mpi.motor(     turningLeftNotRight, -rotationSpeed);
+		
+		return;
+	}
+	
+	float fasterWheelRatio = wheelRatios[theta] * r / 500.0 / 4;
+	float slowerWheelRatio = (100 - wheelRatios[theta]) * r / 500.0 / 4;
+	
+//	float speedFactor = wheelRatioStep * 
+	
+	// Need to handle Rotation (= theta == 0), using turningLeftNotRight.
+	//
+	// Need to damp down the speed (r), from the commanded speed, down 
+	// to 0 for rotation.
+	//
+  mpi.motor( 
+		1 - turningLeftNotRight, 
+		fasterWheelRatio * minusOneMovingBackwardPositiveOneForward);
+	
+	wait_ms( 50);
+
+  mpi.motor( 
+		turningLeftNotRight, 
+		slowerWheelRatio * minusOneMovingBackwardPositiveOneForward);
+}
 
 int prevTheta = 0;	
 
@@ -69,89 +186,17 @@ void processCmd( char* cmd)
 	int thetaVal = thetaStr[0] - '0';
 	
 	if (thetaVal < 0 || thetaVal > numThetaSectors - 1)
-		return;																// Malformed, so bail.		
+		return;																						// Malformed, so bail.		
 		
 	int rVal    = atoi( rStr);
 	int absRval = abs(  rVal);
 	
-	if ((absRval < 0   || absRval > numRadiusBands - 1) &&
-			(absRval < 100 || absRval > 200))
-		return;																// Malformed, so bail.
-	
-	int forwardSpeed = 0;										// Not moving yet.
-	int rotateDir    = 0;										// No rotation yet.
+	if (absRval < 0 || absRval > numRadiusBands)
+		return;																						// Malformed, so bail.
 
-	// absRval >= 100 means full-scale JoyStick deflection, which we
-	// take to mean Rotation rather than movement.
-	//
-	if (absRval >= 100)
-	{
-//		pc.printf( "Processing full-scale theta = '%d'\r", thetaVal);
-		
-		// When we're told that theta changed from 2 to 7, it's ambiguous,
-		// because we don't know if it changed in the cw or ccw direction.
-		// To resolve the ambiguity, we'll calculate both differences.
-		//
-		// The positive one will be in the ccw direction.
-		//
-		// For the negative one, we'll add numThetaSectors.
-		//
-		int negDiff, posDiff;
-		int localPrevTheta = prevTheta;
-		
-		int diff = thetaVal - prevTheta;
-		
-//		pc.printf( "diff = %d\r", diff);
-		
-		if (diff < 0)
-		{
-			negDiff =  diff + numThetaSectors;
-			posDiff = -diff;
-		}
-		else if (diff > 0)
-		{
-			negDiff = numThetaSectors - diff;
-			posDiff = diff;
-		}
-		else
-			return;					// Nothing to see here, move along, move along.
-
-//		pc.printf( "negDiff = %d, posDiff = %d\r", negDiff, posDiff);
-		
-		// Finally, rotateDir = the sign of the smaller of the absValue of 
-		// cwVal and ccwVal.
-		
-		int signDiff = signI( diff);
-		rotateDir = (negDiff < posDiff) ? -signDiff : signDiff;
-		
-		prevTheta = thetaVal;
-	}
-	else
-		forwardSpeed = absRval;
-
-	if (absRval >= 100)
-	{
-		pc.printf( "rotateDir = %d\r", rotateDir);
-		
-		const float rotationRate = 0.1;
-		
-		if (rotateDir > 0)
-			mpi.left( rotationRate);
-		else
-			mpi.right( rotationRate);
-	}
-	else
-	{
-		pc.printf( "forwardSpeed = %d\r", forwardSpeed);
-		
-		if (thetaVal >= numThetaSectors / 2)
-			forwardSpeed *= -1;
-		
-		if (forwardSpeed != 0)
-			mpi.forward( forwardSpeed / 10.0);
-		else
-			mpi.stop();
-	}
+	// Call our fancy new turning function.
+	//	
+	turn( rVal, thetaVal);	
 }
 
 #define BUFLEN 80
@@ -169,47 +214,51 @@ int main()
   // registration approach isn't working, I'll modify it to match
 	// the mp3i Library's approach, and then hopefully we'll have 
 	// a RPCFunction()-registration Class that works.
+	//	
+	mpi.leds( 0x0);		// Let's save our battery a bit for now.
 
-		mpi.locate( 0,1);
-		char msg[] = "JOYSTICK";
-    mpi.print( msg, strlen( msg));
-	
-		char buf[BUFLEN] = "";
-		int bufLen = 0;
-	
-		pc.baud( 57600);
-		xBee.baud( 57600);
-		
-		int count = 0;
-	
-		while (1)
-		{
-        if (!xBee.readable())
-					continue;
+	mpi.locate( 0,1);
+	char msg[] = "JOYSTICK";
+	mpi.print( msg, strlen( msg));
 
-				char c = xBee.getc();
-				pc.putc( c);
+	char buf[BUFLEN] = "";
+	int bufLen = 0;
+
+	pc.baud(   57600);
+	xBee.baud( 57600);
+	
+	populateWheelRanges();
+
+	int count = 0;
+
+	while (1)
+	{
+			if (!xBee.readable())
+				continue;
+
+			char c = xBee.getc();
+			pc.putc( c);
+			
+			if (bufLen >= BUFLEN || c == '\r' || c == '\n')
+			{
+				processCmd( buf);
+				wait_ms( 500);
 				
-				if (bufLen >= BUFLEN || c == '\r' || c == '\n')
-				{
-					processCmd( buf);
-					wait_ms( 250);
-					
-					bufLen = 0;
-					pc.printf( "\r");
-				}
-				else						
-					buf[bufLen++] = c;
-				
-				count++;
-				
-				if (count % 100 == 0)
-				{
-					mpi.locate( 0,0);
-					sprintf( msg, "B=%4dmV", int( mpi.battery() * 1000));
-					mpi.print( msg, strlen( msg));
-				}
-		}
-		
-		return 1;
+				bufLen = 0;
+				pc.printf( "\r");
+			}
+			else						
+				buf[bufLen++] = c;
+			
+			count++;
+			
+			if (count % 100 == 0)
+			{
+				mpi.locate( 0,0);
+				sprintf( msg, "B=%4dmV", int( mpi.battery() * 1000));
+				mpi.print( msg, strlen( msg));
+			}
+	}
+	
+	return 1;
 }

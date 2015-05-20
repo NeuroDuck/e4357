@@ -7,12 +7,14 @@ hard left   4       0    hard right
              backward
 
 
-               forward
-                  3
-slight left     4   2    slight right
-medium left   5       1    medium right
-hard left   6           0    hard right
-              7      11
-                8  10 
-                  9
-               backward
+//                    forward
+//                       4
+// slight left         5   3   slight right
+// medium left       6       2    medium right
+// hard leftFwd    7           1     hard rightFwd
+// rotate left   8               0      rotate right
+// hard leftBkwd   9          15     hard rightBkwd
+//                  10      14
+//                    11  13
+//                      12
+//                   backward
