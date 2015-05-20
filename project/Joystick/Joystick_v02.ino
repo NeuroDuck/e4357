@@ -49,22 +49,21 @@ int thetaVal = 0;
 // I'll rotate the Robot in Rotation mode then push the SETBUTTON, 
 // to specify which way "North" is in the room I'm exploring.
 //
-const int rotationModeFlag    = 100;
-const int numSectors          = 8;
-const int degreesPerSector    = 360 / numSectors;
-const int noiseCeiling        = 120;
-const int fullScaleFloor      = 900;
-const int numberOfSpeedRanges = 8;
-const int speedRangeWidth = 
-  (fullScaleFloor - noiseCeiling) / numberOfSpeedRanges;
+const int numSectors           = 16;
+const int degreesPerSector     = 360 / numSectors;
+const int noiseCeiling         = 120;
+const int fullScaleFloor       = 900;
+const int numberOfRadiusRanges = 8;
+const int radiusRangeWidth = 
+  (fullScaleFloor - noiseCeiling) / numberOfRadiusRanges;
   
-int speedRangeCeilings[numberOfSpeedRanges + 1];
+int radiusRangeCeilings[numberOfRadiusRanges + 1]; // +1 for noise bulls-eye.
 
-void setSpeedRangeValues()
+void setRadiusRangeValues()
 { 
-  for (int i = 0 ; i <= numberOfSpeedRanges ; i++)
+  for (int i = 0 ; i <= numberOfRadiusRanges ; i++)
   {
-    speedRangeCeilings[i] = noiseCeiling + speedRangeWidth * i;
+    radiusRangeCeilings[i] = noiseCeiling + radiusRangeWidth * i;
   }
 }
 
@@ -89,11 +88,11 @@ boolean get_R_Theta()
   horizontal = analogRead( HORIZ_ORANGE_WIRE);  // will be 0-1023.
   vertical   = analogRead( VERT_GREEN_WIRE);    // will be 0-1023.
   
-  const int noiseBand = 3;
+  const int perSampleNoiseBand = 3;
   
-  if (abs( horizontal - prevHorizontal) > noiseBand)
+  if (abs( horizontal - prevHorizontal) > perSampleNoiseBand)
     changed = true;
-  if (abs( vertical - prevVertical) > noiseBand)
+  if (abs( vertical - prevVertical) > perSampleNoiseBand)
     changed = true;
       
   if (!changed)
@@ -127,34 +126,37 @@ boolean get_R_Theta()
   // Find the first Ceiling that the value is less than.
   //
   int i;
-  for (i = 0 ; i <= numberOfSpeedRanges ; i++)
+  for (i = 0 ; i <= numberOfRadiusRanges ; i++)
   {
-    if (rVal0 < speedRangeCeilings[i])
+    if (rVal0 < radiusRangeCeilings[i])
       break;
   }
-  rVal = i;    // 0 == in the noise bulls-eye.
-
-  // We're in the outer-most ring, meaning we're in Rotation mode,
-  // so just indicate if we're turning CW (= -) or CCW (= +);
-  //
-  if (i > numberOfSpeedRanges)
-    rVal = rotationModeFlag * signI( thetaVal - prevThetaVal);
   
-  changed = false;            // Re-start our considerations.
+  // 0 == in the noise bulls-eye.
+  // i == numberOfRadiusRanges, means we're in the full-deflection
+  //      outer-donut.
+  //
+  rVal = i;
 
+  changed = false;            // Re-start our considerations.
+  
   if (rVal != prevRval || fabs( thetaVal - prevThetaVal) >= 1.0)
   {
-    if (abs( prevRval) < rotationModeFlag ||
-        abs( rVal) >= rotationModeFlag)
-    {
+
+//    if (abs( prevRval) < rotationModeFlag)) // ||
+//        abs( rVal) >= rotationModeFlag)
+//    {
       changed = true;    // Try to prevent bogus point when snapping      
+/*
     }
     else                 // back to center.
+
     {
 //      Serial.print( "No #2: ");
 //      debugPrint();
         delay( 250);     // Simplify preventing unwanted Snap-back 
     }                    // points.
+*/
     prevRval = rVal;
     prevThetaVal = thetaVal;
   }                      
@@ -186,7 +188,7 @@ void setup()
   //
   pinMode( SETDIRBUTTON, INPUT);      
 
-  setSpeedRangeValues();  
+  setRadiusRangeValues();  
   
 //  debugPrint();
 }
