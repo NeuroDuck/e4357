@@ -49,8 +49,6 @@
 #define M2_FORWARD 0xC5
 #define M2_BACKWARD 0xC6
 
-
-
 /** m3pi control class
  *
  * Example:
@@ -98,8 +96,6 @@ public:
      *
      */
     m3pi(PinName nrst, PinName tx, PinName rx);
-
-
 
     /** Force a hardware reset of the 3pi
      */
@@ -217,6 +213,8 @@ public:
      * @param int The character to send to the 3pi
      */
     int print(char* text, int length);
+		
+    void motor( int motor, float speed);
 
 #ifdef MBED_RPC
     virtual const struct rpc_method *get_rpc_methods();
@@ -227,7 +225,6 @@ private :
     DigitalOut _nrst;
     Serial _ser;
     
-    void motor (int motor, float speed);
     virtual int _putc(int c);
     virtual int _getc();
 
