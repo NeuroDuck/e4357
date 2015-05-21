@@ -87,12 +87,12 @@ const int backwardTheta = forwardTheta + halfNumThetaSectors;
 const int rotateLeftTheta = halfNumThetaSectors;
 const int rotateRightTheta = 0;
 
-void turn( int r, int theta)
+char* turn( int r, int theta)
 {
 	if (r == 0)
 	{
 		mpi.stop();
-		return;
+		return "";
 	}
 	
 	// -1 == backward, and 1 == forward, as this simplifies creating the 
@@ -138,7 +138,7 @@ void turn( int r, int theta)
 		wait_ms( 50);
 		mpi.motor(     turningLeftNotRight, -rotationSpeed);
 		
-		return;
+		return "";
 	}
 	
 	float fasterWheelRatio = wheelRatios[theta] * r / 500.0 / 4;
@@ -160,46 +160,53 @@ void turn( int r, int theta)
   mpi.motor( 
 		turningLeftNotRight, 
 		slowerWheelRatio * minusOneMovingBackwardPositiveOneForward);
+	
+	return "";
 }
 
+#define BUFLEN 80
 int prevTheta = 0;	
 
-void processCmd( char* cmd)
+char* processDrivingCmd( char* cmd)
 {
 	char *rStr, *thetaStr;
 	char delims[] = " \t";
+	char originalCmd[BUFLEN];
 	
+	strcpy( originalCmd, cmd);	
 	char* firstDelim = strpbrk( cmd, delims);
 	
 	if (firstDelim == NULL)
-		return;																// Malformed, so bail.
+	{
+		sprintf( cmd, "%d-Delim", strlen( cmd));	// Evil, but helpful.
+		return cmd;																// Malformed, so bail.
+	}
 
 	rStr     = strtok( cmd,  delims);
 	thetaStr = strtok( NULL, delims);
 	
 //	pc.printf( "rStr = '%s', thetaStr = '%s'\r", rStr, thetaStr);
 	
-	// We seem to be receiving doubled characters for theta, so for now
-	// just stomp the 2nd one and declare victory.
-	//
-	thetaStr[1] = '\0';
 	int thetaVal = thetaStr[0] - '0';
 	
 	if (thetaVal < 0 || thetaVal > numThetaSectors - 1)
-		return;																						// Malformed, so bail.		
+	{
+		sprintf( cmd, "%d-Theta", thetaVal);						// Evil, but helpful.
+		return cmd;																			// Malformed, so bail.
+	}
 		
-	int rVal    = atoi( rStr);
-	int absRval = abs(  rVal);
+	int rVal = atoi( rStr);
 	
-	if (absRval < 0 || absRval > numRadiusBands)
-		return;																						// Malformed, so bail.
+	if (rVal < 0 || rVal > numRadiusBands)
+	{
+		sprintf( cmd, "%d-Radius", rVal);				// Evil, but helpful.
+		return cmd;															// Malformed, so bail.
+	}
 
 	// Call our fancy new turning function.
 	//	
-	turn( rVal, thetaVal);	
+	return turn( rVal, thetaVal);	
 }
-
-#define BUFLEN 80
 
 int main() 
 {
@@ -217,19 +224,19 @@ int main()
 	//	
 	mpi.leds( 0x0);		// Let's save our battery a bit for now.
 
-	mpi.locate( 0,1);
+	mpi.locate( 0, 1);
 	char msg[] = "JOYSTICK";
 	mpi.print( msg, strlen( msg));
-
-	char buf[BUFLEN] = "";
-	int bufLen = 0;
 
 	pc.baud(   57600);
 	xBee.baud( 57600);
 	
 	populateWheelRanges();
-
-	int count = 0;
+	
+	int bufLen = 0;
+  char buf[BUFLEN] = "";
+	char origBuf[BUFLEN], pbuf[BUFLEN], processResult[BUFLEN];
+	int batteryDisplayCount = 0;
 
 	while (1)
 	{
@@ -241,8 +248,30 @@ int main()
 			
 			if (bufLen >= BUFLEN || c == '\r' || c == '\n')
 			{
-				processCmd( buf);
-				wait_ms( 500);
+				buf[bufLen] = '\0';		// Null-terminate our received cmd.
+				
+				// processCmd() uses strtok() on buf, so let's make a
+				// backup copy of it first.
+				//
+				strcpy( origBuf, buf);
+				pc.printf( "%s\r\n", origBuf);
+				strcpy( processResult, processDrivingCmd( buf));
+
+				if (batteryDisplayCount % 100 > 20)
+				{
+					mpi.locate( 0, 0);
+					
+					if (strlen( processResult) > 0)
+						sprintf( msg, "%-8s", processResult);
+					else
+					{
+						sprintf( pbuf, "%-4s L=%d", origBuf, strlen( origBuf));
+						sprintf( msg, "%-8s", pbuf);
+					}
+					pc.printf( "%s\r\n", msg);
+					mpi.print( msg, strlen( msg));
+				}
+				wait_ms( 10);
 				
 				bufLen = 0;
 				pc.printf( "\r");
@@ -250,9 +279,9 @@ int main()
 			else						
 				buf[bufLen++] = c;
 			
-			count++;
+			batteryDisplayCount++;
 			
-			if (count % 100 == 0)
+			if (batteryDisplayCount % 100 == 0)
 			{
 				mpi.locate( 0,0);
 				sprintf( msg, "B=%4dmV", int( mpi.battery() * 1000));
