@@ -30,8 +30,7 @@ int prevHorizontal = 0, prevVertical = 0;
 int horizontal, vertical;
 double xVal  = 0, yVal = 0;
 int rVal0 = 0, rVal = 0, prevRval = -1;
-double thetaVal0 = 0, prevThetaVal = -1.0;
-int thetaVal = 0;
+int thetaVal0 = 0, thetaVal = 0, prevThetaVal = -1;
 
 // To further increase the noise rejection of the JoyStick program,
 // I'm thinking of cutting its Theta output into 8 sectors.  
@@ -49,24 +48,23 @@ int thetaVal = 0;
 // I'll rotate the Robot in Rotation mode then push the SETBUTTON, 
 // to specify which way "North" is in the room I'm exploring.
 //
-const int numSectors           = 16;
-const int degreesPerSector     = 360 / numSectors;
-const int noiseCeiling         = 120;
-const int fullScaleFloor       = 900;
-const int numberOfRadiusRanges = 8;
-const int radiusRangeWidth = 
-  (fullScaleFloor - noiseCeiling) / numberOfRadiusRanges;
+const int   numThetaSectors       = 16;
+const float degreesPerThetaSector = 360.0 / numThetaSectors;
+const int   noiseCeiling          = 120;
+const int   fullScaleFloor        = 900;
+const int   numRadiusRanges  = 8;
+const int   radiusRangeWidth = (fullScaleFloor - noiseCeiling) / numRadiusRanges;
   
-int radiusRangeCeilings[numberOfRadiusRanges + 1]; // +1 for noise bulls-eye.
+int radiusRangeCeilings[numRadiusRanges + 1]; // +1 for noise bulls-eye.
 
 void setRadiusRangeValues()
 { 
-  for (int i = 0 ; i <= numberOfRadiusRanges ; i++)
+  for (int i = 0 ; i <= numRadiusRanges ; i++)
   {
     radiusRangeCeilings[i] = noiseCeiling + radiusRangeWidth * i;
   }
 }
-
+ 
 int signI( int i)
 {
   if (i < 0)
@@ -78,8 +76,7 @@ int signI( int i)
   return 2;        // So 0 ends up being 2 * rotationModeFlag;
 }
 
-// The Plus and Minus values above define an Ellipse,
-// in which to define R-Theta values.
+// The Plus and Minus values above define an Ellipse, in which to define R-Theta values.
 //
 boolean get_R_Theta()
 {
@@ -115,50 +112,107 @@ boolean get_R_Theta()
   else
     yVal = 0;
     
-  rVal0 = sqrt( xVal * xVal + yVal * yVal);
-  thetaVal0 = int( atan2( yVal, xVal) * 180.0 / PI + 360.0) % 360;
-  
-  // Let's smooth out the values according to our criteria above.
-  // Add numSectors to shist us upwards so we don't have to cross zero.
+  // Convert (x, y) Cartesian Coordinates to (r, theta) Polar Coordinates.
+  // Convert r into one of <numRadiusRanges> radiusRanges, 
+  // and theta into one of <numThetaSectors> thetaSectors.
   //
-  thetaVal = int( thetaVal0 / degreesPerSector) + numSectors;
+  rVal0 = sqrt( xVal * xVal + yVal * yVal);
   
-  // Find the first Ceiling that the value is less than.
+  // Find the first radiusRangeCeiling that rVal0 is less than.
   //
   int i;
-  for (i = 0 ; i <= numberOfRadiusRanges ; i++)
+  for (i = 0 ; i <= numRadiusRanges ; i++)
   {
     if (rVal0 < radiusRangeCeilings[i])
       break;
   }
-  
-  // 0 == in the noise bulls-eye.
-  // i == numberOfRadiusRanges, means we're in the full-deflection
-  //      outer-donut.
-  //
+
+  // 0 == we're in the noise bulls-eye.
+  // i == numRadiusRanges, means we're in the full-deflection outer-donut,
+  //      which formerly had special significance, indicating Rotation, and now
+  //      is treated the same as other RadiusRanges.
   rVal = i;
+  
+  const float degreesPerCircleF = 360.0;
+  const int   degreesPerCircleI = 360;
+  
+  Serial.print( "\n(r, theta) = (");
+  Serial.print( rVal);
+  
+  // Calculate thetaVal.
+  // Shift the values from +/- 180 to 0-359.
+  //
+  thetaVal0 = 
+    int( atan2( yVal, xVal) * 180.0 / PI + degreesPerCircleF) % degreesPerCircleI;
+  
+  Serial.print( ", ");
+  Serial.print( thetaVal0);
+  Serial.println( ")");
+
+  // Determine which thetaSector we are in.
+  // To do this, we'll convert the 0->359 range to 0->(numThetaSectors - 1).
+  //
+  // Rotate thetaVal half a sector CW, so sectors will straddle their center-theta's.
+  //
+  thetaVal0 = int( thetaVal0 + degreesPerThetaSector / 2.0) % degreesPerCircleI;
+  
+  Serial.print( "thetaVal0b = ");
+  Serial.print( thetaVal0);
+
+  thetaVal = int( thetaVal0 / degreesPerThetaSector);
+  
+  Serial.print( " => thetaVal = ");
+  Serial.println( thetaVal);
+  
+  // When rVal <= numRadiusRanges / 2, the JoyStick cannot resolve 16 thetaSectors, 
+  // so smash the 3 {slight,medium,hard} types of turns into only {medium} turns.
+  //  
+  const int sectorsTooNarrowBelowRadiusRangeNdx = numRadiusRanges / 2 + 3;
+  const int numQuadrants = 4;
+  
+  if (rVal < sectorsTooNarrowBelowRadiusRangeNdx)
+  {    
+    // Rotate thetaVal another half a sector CW, so sectors will straddle their 
+    // center-theta's for double the degreesPerThetaSector.
+    //
+    thetaVal0 = int( thetaVal0 + degreesPerThetaSector / 2.0) % degreesPerCircleI;    
+
+    // Re-compute thetaVal based on having half as many thetaSectors.
+    //
+    int newThetaVal = int( thetaVal0 / (degreesPerThetaSector * 2));
+
+    Serial.print( "squashed          newThetaVal = ");
+    Serial.println( newThetaVal);
+
+    // Re-stretch out the value to spread it back across the original # of sectors.
+    newThetaVal = newThetaVal * 2;
+
+    Serial.print( "newThetaVal2 = ");
+    Serial.println( newThetaVal);
+    
+//    if (newThetaVal != thetaVal)
+    {
+      Serial.print( "Changing thetaVal from ");
+      Serial.print( thetaVal);
+      Serial.print( " to ");
+      Serial.println( newThetaVal);
+      thetaVal = newThetaVal;
+    }
+  }
+  
+  // Lastly, we add in a full-circle, to prevent crossing zero in the next 
+  // iteration, when subtracting from prevThetaVal.
+  //
+  thetaVal += numThetaSectors;
 
   changed = false;            // Re-start our considerations.
-  
+
   if (rVal != prevRval || fabs( thetaVal - prevThetaVal) >= 1.0)
   {
-
-//    if (abs( prevRval) < rotationModeFlag)) // ||
-//        abs( rVal) >= rotationModeFlag)
-//    {
       changed = true;    // Try to prevent bogus point when snapping      
-/*
-    }
-    else                 // back to center.
 
-    {
-//      Serial.print( "No #2: ");
-//      debugPrint();
-        delay( 250);     // Simplify preventing unwanted Snap-back 
-    }                    // points.
-*/
-    prevRval = rVal;
-    prevThetaVal = thetaVal;
+      prevRval = rVal;
+      prevThetaVal = thetaVal;
   }                      
   else
   {
@@ -226,7 +280,7 @@ void mbedPrint()
 {
   Serial.print( rVal, DEC);
   Serial.print( " ");
-  Serial.println( thetaVal - numSectors, DEC);
+  Serial.println( thetaVal - numThetaSectors, DEC);
 }
 
 void loop() 

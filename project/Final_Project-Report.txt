@@ -557,6 +557,31 @@ Checking in first working code that drives the Robot via XBee from a JoyStick
 connected to an Arduino Fio, as shown in:
 
 	"mbed Controlled via XBee by JoyStick connected to Arduino Fio.png"
+	
+Update:
+------
+
+As shown in:
+
+    "git\e4357\project\Joystick\New JoyStick-Theta-Sector Patterns-to support Steering.txt"
+
+to create turning capability, I switched the JoyStick program to subdivide its circle into
+16 sectors, where theta =0 & =8 are Rotate right & left, and =4 and =8 are drive forward 
+and backward.
+
+I assigned the 3 theta values in between each of these to represent {slight,medium,hard}
+turns.
+
+Alas, I discovered that this JoyStick is too coarse to be able to produce/distinguish this 
+many theta values, at least for radius values <= 50% of full-scale.
+
+To address this, for radius values <= 6 (out of a maximum of 9), I now smash the 3 turn 
+values into only 1.
+
+I imagine that further testing will reveal that I'll basically have to just raise the 
+noise floor significantly above its current value of r=120, as the JoyStick just doesn't
+have enough angular resolution (to support having 3 different radii of turns) with 
+JoyStick deflections of less than that.
 
 Results/Solutions:
 -----------------

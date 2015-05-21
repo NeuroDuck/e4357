@@ -6,6 +6,16 @@ hard left   4       0    hard right
                 6
              backward
 
+//                     forward
+//                        3
+// slight left          4   2   slight right
+// moderate leftFwd   5       1    medium rightFwd
+// rotate left      6           0    rotate right
+// moderateleftBackwd 7      11    moderate rightBkwd
+//                      8  10
+//                        9  
+//                    backward
+
 
 //                    forward
 //                       4
@@ -18,3 +28,12 @@ hard left   4       0    hard right
 //                    11  13
 //                      12
 //                   backward
+
+thetaVal = 
+  int( thetaVal0 / degreesPerThetaSector) + numThetaSectors;
+
+vs.
+
+thetaVal = 
+  int( thetaVal0 / degreesPerThetaSector / 2) + (numThetaSectors / 2);
+
