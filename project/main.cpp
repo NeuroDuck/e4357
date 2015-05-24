@@ -87,12 +87,12 @@ const int backwardTheta = forwardTheta + halfNumThetaSectors;
 const int rotateLeftTheta = halfNumThetaSectors;
 const int rotateRightTheta = 0;
 
-char* turn( int r, int theta)
+void turn( int r, int theta)
 {
 	if (r == 0)
 	{
 		mpi.stop();
-		return "";
+		return;
 	}
 	
 	// -1 == backward, and 1 == forward, as this simplifies creating the 
@@ -130,21 +130,20 @@ char* turn( int r, int theta)
 		theta = halfNumThetaSectors - theta;
 	
 	// Are we rotating?
+	//	
 	if (minusOneMovingBackwardPositiveOneForward == 0)
 	{
-		float rotationSpeed = (float)r / numRadiusBands / 4;
+		float rotationSpeed = (float)r / numRadiusBands; // / 4; // (run slower).
 		
 		mpi.motor( 1 - turningLeftNotRight,  rotationSpeed);
 		wait_ms( 50);
 		mpi.motor(     turningLeftNotRight, -rotationSpeed);
 		
-		return "";
+		return;
 	}
-	
-	float fasterWheelRatio = wheelRatios[theta] * r / 500.0 / 4;
+
+	float fasterWheelRatio =        wheelRatios[theta]  * r / 500.0 / 4;
 	float slowerWheelRatio = (100 - wheelRatios[theta]) * r / 500.0 / 4;
-	
-//	float speedFactor = wheelRatioStep * 
 	
 	// Need to handle Rotation (= theta == 0), using turningLeftNotRight.
 	//
@@ -161,51 +160,144 @@ char* turn( int r, int theta)
 		turningLeftNotRight, 
 		slowerWheelRatio * minusOneMovingBackwardPositiveOneForward);
 	
-	return "";
+	return;
 }
 
 #define BUFLEN 80
-int prevTheta = 0;	
+int prevTheta = 0;
 
-char* processDrivingCmd( char* cmd)
+// Typical input is:
+//   "!1d1 1d2 1d2";
+// to parse:
+//   "!6 11 17"
+//
+// Returns:
+//   1 == all's well.
+//   0 thru -numFields == that field didn't parse.
+// -10 -actualLength   == actualLen
+//
+// Return (-10 - strlen( cmd)) if the input length is not 
+// as expected.
+//
+// Usage:
+// 	char* fieldsSpec = "!1d1 1d2 1d2";
+// 	int* results[] = { 
+//	  dummy, &rVal, &dummy, &thetaVal, &dummy, &checksum 
+//	};
+//	int invalidFieldNum = checkFields( cmd, fieldsSpec, results);
+// 
+//  Parsed values are returned in variables pointed to by the 
+//  array elements in results[].
+//
+int checkFields( char* cmd, char* fieldsSpec, int* results[])
 {
-	char *rStr, *thetaStr;
-	char delims[] = " \t";
-	char originalCmd[BUFLEN];
+	int numFields = strlen( fieldsSpec) / 2;
 	
-	strcpy( originalCmd, cmd);	
-	char* firstDelim = strpbrk( cmd, delims);
-	
-	if (firstDelim == NULL)
+	int fieldNdx;
+	int expectedInputLength = 0;
+	for (fieldNdx = 0 ; fieldNdx < numFields ; fieldNdx++)
 	{
-		sprintf( cmd, "%d-Delim", strlen( cmd));	// Evil, but helpful.
-		return cmd;																// Malformed, so bail.
+		expectedInputLength += fieldsSpec[fieldNdx * 2 + 1] - '0';
+	}
+	
+	int actualInputLength = strlen( cmd);
+	if (actualInputLength != expectedInputLength)
+		return -10 - actualInputLength;
+	
+	int cmdNdx = 0;
+	for (fieldNdx = 0 ; fieldNdx < numFields ; fieldNdx++)
+	{
+		int numRepeats = fieldsSpec[fieldNdx * 2 + 1] - '0';
+		bool failed = false;
+		*(results[fieldNdx]) = 0;  // Clear out any passed in junk.
+		
+		for (int repeatNdx = 0 ; repeatNdx < numRepeats ; repeatNdx++)
+		{
+			switch (fieldsSpec[fieldNdx * 2])
+			{
+				case 'd':
+					if (cmd[cmdNdx] < '0' || cmd[cmdNdx] > '9')
+						failed = true;
+					else
+					{
+						*(results[fieldNdx]) *= 10;
+						*(results[fieldNdx]) += cmd[cmdNdx] - '0';
+					}
+					break;
+
+				default:
+					if (cmd[cmdNdx] != fieldsSpec[fieldNdx * 2])
+						failed = true;
+			}
+			cmdNdx++;
+			
+			if (failed)
+				return -fieldNdx;
+		}
+	}
+	
+	return 1;		// All's well.
+}
+
+// Input is now fixed-length 8-chars,
+// with the last 2 digits being 
+// the sum of the first two numbers,
+// starting with a "!" :-). 
+// At present radiusRange is always a single digit.
+// I.e., ...
+// 12345678
+// !6 11 17
+//
+bool processDrivingCmd( char* cmd, char* errorMsg)
+{
+	int rVal = 0, thetaVal = 0, checksum = 0, dummy = 0;
+	char fieldsSpec[] = "!1d1 1d2 1d2";
+	int* results[] = { 
+		&dummy, &rVal, &dummy, &thetaVal, &dummy, &checksum 
+	};
+	const char* fieldNames[] = { 
+		"Start", "Radius", "Space1", "Theta", "Space2", "Chksum"
+	};
+	
+	int invalidFieldNum = checkFields( cmd, fieldsSpec, results);
+	
+	if (invalidFieldNum <= -10)		// The length was incorrect.
+	{
+		sprintf( errorMsg, "%d-Length", 10 + invalidFieldNum);
+		return false;
+	}
+	
+	if (rVal + thetaVal != checksum)
+	{
+		sprintf( errorMsg, "%02d!%02dchk", rVal + thetaVal, checksum);
+		return false;
 	}
 
-	rStr     = strtok( cmd,  delims);
-	thetaStr = strtok( NULL, delims);
-	
-//	pc.printf( "rStr = '%s', thetaStr = '%s'\r", rStr, thetaStr);
-	
-	int thetaVal = thetaStr[0] - '0';
-	
-	if (thetaVal < 0 || thetaVal > numThetaSectors - 1)
+	if (invalidFieldNum != 1)
 	{
-		sprintf( cmd, "%d-Theta", thetaVal);						// Evil, but helpful.
-		return cmd;																			// Malformed, so bail.
+		pc.printf( "%s\r\n", fieldNames[-invalidFieldNum]);
+		return false;
 	}
-		
-	int rVal = atoi( rStr);
 	
 	if (rVal < 0 || rVal > numRadiusBands)
 	{
-		sprintf( cmd, "%d-Radius", rVal);				// Evil, but helpful.
-		return cmd;															// Malformed, so bail.
+		sprintf( errorMsg, "%d-Radius", rVal);
+		return false;
 	}
+	
+	if (thetaVal < 0 || thetaVal > numThetaSectors - 1)
+	{
+		sprintf( errorMsg, "%d-Theta", thetaVal);	
+		return false;
+	}
+	
+	pc.printf( "rVal = '%d', thetaVal = '%d'\r", rVal, thetaVal);
 
 	// Call our fancy new turning function.
 	//	
-	return turn( rVal, thetaVal);	
+	turn( rVal, thetaVal);
+	
+	return true;
 }
 
 int main() 
@@ -235,7 +327,7 @@ int main()
 	
 	int bufLen = 0;
   char buf[BUFLEN] = "";
-	char origBuf[BUFLEN], pbuf[BUFLEN], processResult[BUFLEN];
+	char pbuf[BUFLEN], processResult[BUFLEN];
 	int batteryDisplayCount = 0;
 
 	while (1)
@@ -250,24 +342,23 @@ int main()
 			{
 				buf[bufLen] = '\0';		// Null-terminate our received cmd.
 				
-				// processCmd() uses strtok() on buf, so let's make a
-				// backup copy of it first.
-				//
-				strcpy( origBuf, buf);
-				pc.printf( "%s\r\n", origBuf);
-				strcpy( processResult, processDrivingCmd( buf));
+				pc.printf( "%s\r\n", buf);
+				
+				processResult[0] = '\0';
+				bool processingSucceeded = processDrivingCmd( buf, processResult); 
 
 				if (batteryDisplayCount % 100 > 20)
 				{
 					mpi.locate( 0, 0);
 					
-					if (strlen( processResult) > 0)
+					if (!processingSucceeded)
 						sprintf( msg, "%-8s", processResult);
 					else
 					{
-						sprintf( pbuf, "%-4s L=%d", origBuf, strlen( origBuf));
+						sprintf( pbuf, "%-4s L=%d", buf, strlen( buf));
 						sprintf( msg, "%-8s", pbuf);
 					}
+
 					pc.printf( "%s\r\n", msg);
 					mpi.print( msg, strlen( msg));
 				}

@@ -583,5 +583,82 @@ noise floor significantly above its current value of r=120, as the JoyStick just
 have enough angular resolution (to support having 3 different radii of turns) with 
 JoyStick deflections of less than that.
 
+Update:
+------
+
+Possibly due to having switched the XBees to the "LOWEST" transmission power setting, the
+mbed is now receiving lots of garbled messages from the JoyStick.
+
+To address this, I've implemented a fixed-length 8-byte(+CR) JoyStick message format of 
+the form "!r tt ck", where:
+
+	r == JoyStick radius value
+	tt = JoyStick Theta value
+	ck == checksum (= sum of r + tt) value
+	
+In the mbed code, I added a simple parser function, that is called like this:
+
+	int rVal = 0, thetaVal = 0, checksum = 0, dummy = 0;
+    char fieldsSpec[] = "!1d1 1d2 1d2";
+    int* results[] = { &dummy, &rVal, &dummy, &thetaVal, &dummy, &checksum };
+
+	int invalidFieldNum = checkFields( cmd, fieldsSpec, results);
+
+    if (invalidFieldNum <= -10)          					// The length was incorrect.
+	{ ... }										// Actual length = 10 + invalidFieldNum;
+	
+	if (thetaVal < 0 || thetaVal > numThetaSectors - 1)		// Theta wasn't valid.
+	{ ... }
+	
+	if (rVal + thetaVal != checksum)						// Checksum failed.
+	{ ... }
+	
+	if (invalidFieldNum != 1)								// Fieldnum# -invalidFieldNum
+	{ ... }													// had a problem.
+
+I found that I reached a point with the Keil Debugger, where I needed to let the program 
+run at full speed to find bugs/hangs, etc., that stepping past breakpoints would not 
+accomplish.
+
+I suppose I could have made a variable-incrementing if-statement, and set a breakpoint
+inside its { block } to fake a conditional-breakpoint, like Visual Studio has.
+
+Instead I decided that I'd rather have a place to print the mbed's debugging messages 
+during Wireless operations (and to support later new features), so I added this 2x16 
+ASCII display to the JoyStick:
+
+https://www.parallax.com/sites/default/files/downloads/27979-Parallax-Serial-LCDs-Product-Guide-v3.1.pdf
+http://learn.parallax.com/KickStart/27977
+
+On its top line, it displays its outgoing messages, now of the fixed-length form described
+above.
+
+On its bottom line, it displays messages received from the mbed, to aid my debugging.
+
+To save the battery, the Display's backlight is toggled by a debounced momentary 
+pushbutton.
+
+Alas, this Display is a 5V part, my Arduino Fio has no 5V output, and I didn't want to risk 
+burning it up, so I rigged up a Voltage Divider off of the 4xNiMH batteries (= 5.41V) as 
+shown in:
+
+    "JoyStick Display+Voltage Divider.jpg"
+	
+to step it down to ~5.0V.  I found that to get the Display to work, I had to use very low 
+values in the Voltage Divider ( [vBatt <- ~10 Ohms "." 100 Ohms -> Ground], where the 
+Display is connected to the "."), or the Display couldn't get enough current to operate.
+
+My resistors are only 1/8W, so to avoid melting them, I put 2 of double the values above in 
+parallel to achieve each of the values above.
+
+When I get time to buy a 2-Cell LiPo battery, I will replace the Voltage Divider with a 
+LM7805 7V->5V Voltage Regulator.
+
+In the meantime, I became brave, and hooked the Display directly to the Battery, and it's 
+working well with no Voltage Divider. 
+
+Next I'll wade through the mbed's messages on the JoyStick display, to further debug the 
+mbed's processing of the JoyStick commands.
+
 Results/Solutions:
 -----------------
