@@ -639,7 +639,7 @@ To save the battery, the Display's backlight is toggled by a debounced momentary
 pushbutton.
 
 Alas, this Display is a 5V part, my Arduino Fio has no 5V output, and I didn't want to risk 
-burning it up, so I rigged up a Voltage Divider off of the 4xNiMH batteries (= 5.41V) as 
+burning it up, so I installed a Voltage Divider off of the 4xNiMH batteries (= 5.41V) as 
 shown in:
 
     "JoyStick Display+Voltage Divider.jpg"
@@ -668,18 +668,13 @@ and displaying the Battery Voltage.  I need to knock it down by 2/3rds, to ensur
 8.4V of a fully-charged 2-Cell LiPo Battery will still be < 3.3V, as that's what the Arduino 
 Fio's is running on.
 
-I also added blocking to the JoyStick program, so on its Display it notifies the user that 
-it is rejecting additional JoyStick input until it receives a response from the Robot.
-In addition, it notifies the user on the Display that they can push the button to cancel 
-the waiting for the Robot's response.
-
 The JoyStick's Display now has 3 sections:
 
 	Upper-left:  JoyStick command sent to Robot
 	Upper-right: Battery Voltage
 	Bottom line: Response from Robot, and JoyStick status messages
 
-The debounced-software-toggle Button (used to cancel waiting, and to toggle the Display 
+The momentary toggle-in-software Button (used to cancel waiting, and to toggle the Display 
 back-lighting) still has a few issues, but otherwise the JoyStick code now has the debug 
 message printing and "JoyStick blocking when waiting for input"-capability that I was 
 envisioning.
@@ -696,6 +691,27 @@ is pushed.
 I'll also use one of the DIP switches to enable/disable "Wait for Robot reply before 
 allowing new JoyStick input", which blocks future JoyStick inputs, when awaiting a reply from
 the Robot to the previous JoyStick command sent to it.
+
+The photo "JoyStick Display-startup.jpg" shows the startup state of the JoyStick's new 
+Display, and the Voltage Divider I'm using to measure an (upcoming) 8.4V LiPo 2-Cell battery
+with one of the Arduino Fio's 3.3V ADC pins.  When I migrate from my current 4xNiMH batteries
+to the 8.4V LiPo one, I'll add a Voltage Regulator to provide 5V to the Display.
+
+In this photo, the Display's upper-left corner is blank, indicating that currently no JoyStick
+command has been sent to the Robot, thus no response is being waited for, and JoyStick input 
+is enabled.
+
+As shown in the photo "Sent JoyStick Cmd. to Robot-Awaiting Response.jpg", when the user moves
+the JoyStick, a command is sent to the Robot and shown in the Display's upper-left corner.
+
+For debugging purposes, I've set the JoyStick's program to block further JoyStick input while 
+it is awaiting a response from the Robot.  To allow for the Robot never responding, the Display
+shows a reminder that pushing the JoyStick's PushButton will cancel the blocking/waiting, and
+re-enable JoyStick input.
+
+The photo "Response from Robot.jpg" shows the Robot's response.  The Display's upper-left 
+corner is blank, indicating that no command has been sent/is being waited for, and that 
+JoyStick input is enabled.
 
 Results/Solutions:
 -----------------
