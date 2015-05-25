@@ -129,6 +129,12 @@ void turn( int r, int theta)
 	if (turningLeftNotRight)
 		theta = halfNumThetaSectors - theta;
 	
+	xBee.printf( 
+		"r%d T%d BF%d LR%d", 
+		r, theta,
+		minusOneMovingBackwardPositiveOneForward,
+		turningLeftNotRight);
+
 	// Are we rotating?
 	//	
 	if (minusOneMovingBackwardPositiveOneForward == 0)

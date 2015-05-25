@@ -713,5 +713,8 @@ The photo "Response from Robot.jpg" shows the Robot's response.  The Display's u
 corner is blank, indicating that no command has been sent/is being waited for, and that 
 JoyStick input is enabled.
 
+The photo "Wireless Debugging message received from Robot.jpg" shows the JoyStick wirelessly
+receiving a debugging message from the Robot.
+
 Results/Solutions:
 -----------------
