@@ -660,5 +660,42 @@ working well with no Voltage Divider.
 Next I'll wade through the mbed's messages on the JoyStick display, to further debug the 
 mbed's processing of the JoyStick commands.
 
+Update:
+------
+
+I added a (22k Ohm . 10k Ohm) Voltage Divider from Vbat <-> Ground, from which I'm measuring
+and displaying the Battery Voltage.  I need to knock it down by 2/3rds, to ensure that the 
+8.4V of a fully-charged 2-Cell LiPo Battery will still be < 3.3V, as that's what the Arduino 
+Fio's is running on.
+
+I also added blocking to the JoyStick program, so on its Display it notifies the user that 
+it is rejecting additional JoyStick input until it receives a response from the Robot.
+In addition, it notifies the user on the Display that they can push the button to cancel 
+the waiting for the Robot's response.
+
+The JoyStick's Display now has 3 sections:
+
+	Upper-left:  JoyStick command sent to Robot
+	Upper-right: Battery Voltage
+	Bottom line: Response from Robot, and JoyStick status messages
+
+The debounced-software-toggle Button (used to cancel waiting, and to toggle the Display 
+back-lighting) still has a few issues, but otherwise the JoyStick code now has the debug 
+message printing and "JoyStick blocking when waiting for input"-capability that I was 
+envisioning.
+
+I'll leave the button functionality as is for now, and use this new JoyStick display to 
+finally return to debugging the Robot's turning functionality.
+
+The only JoyStick addition remaining that I plan to do, is to add a DIP of 8 tiny switches
+connected to pins D2-D9.
+
+This will allow the user to choose which of a multitude of functions to run when the button 
+is pushed.
+
+I'll also use one of the DIP switches to enable/disable "Wait for Robot reply before 
+allowing new JoyStick input", which blocks future JoyStick inputs, when awaiting a reply from
+the Robot to the previous JoyStick command sent to it.
+
 Results/Solutions:
 -----------------

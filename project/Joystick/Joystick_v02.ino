@@ -1,6 +1,7 @@
 // This sketch shows the basic operation of the Thumb Joystick (COM-09032) and breakout board (BOB-09110).
 // The joystick outputs two analog voltages (VERT and HORIZ), and one digital signal (SEL) for the pushbutton.
 
+#define BATTERY_BLUE_WIRE  A5    // Analog.
 #define HORIZ_ORANGE_WIRE  A7    // Analog.
 #define VERT_GREEN_WIRE    A6    // Analog.
 #define DISPLAY_GREEN_WIRE 11    // Digital.
@@ -220,20 +221,20 @@ boolean get_R_Theta()
 SoftwareSerial displaySerial =
   SoftwareSerial( 255, DISPLAY_GREEN_WIRE);
 
-bool ledState        = HIGH;
-bool curButtonState  = ledState;
-bool prevButtonState = !curButtonState;
+bool ledState             = HIGH;
+bool curButtonState       = ledState;
+bool prevButtonState      = !curButtonState;
+bool blockedAwaitingReply = false;
 
 void setup()
 {
   // Fio needs to start this way to support Wireless Programming.
   //
   Serial.begin( 57600);
-  displaySerial.begin( 19200);
+  displaySerial.begin( 19200);  // Let's get the chars displayed quickly.
   delay( 100);                  // Ensure that the Display has
                                 // finished initializing.
-  // Our "Set" Button.
-  // It has a 10k Ohm pull-up resistor,
+  // Our "Set" Button has the internal pull-up resistor enabled,
   // so LOW == Button is being pushed.
   //
   pinMode( SETDIRBUTTON, INPUT_PULLUP);
@@ -246,10 +247,12 @@ void setup()
   
   digitalWrite( LED, ledState); // Set up the Output LED for initial state.
 
-  //  plataDuckBulletin();
-  //  playSongOfTheWind_Suzuki3();
+//  plataDuckBulletin();
+//  playSongOfTheWind_Suzuki3();
 
   setRadiusRangeValues();
+
+  displayOn2ndLine( "<JoyStick ready>");
 }
 
 void debugPrint()
@@ -278,7 +281,6 @@ void debugPrint()
   Serial.print( " thetaVal: ");
   Serial.println( thetaVal, 4);
 }
-
 // Make our print format more structured, to simplify deciding if it's been
 // received intact by the Robot.
 //
@@ -286,37 +288,78 @@ void debugPrint()
 //   12345678
 //   !6 11 17
 //
-void mbedPrint( char* msg)
+void displayAndSendJoyStickCmd()
 {
-  msg[0] = '!';                  // #1.
+  char joystickMsg[10];
+  
+  joystickMsg[0] = '!';                  // #1.
 
-  msg[1] = '0' + rVal;           // For now, this is always one digit.  #2.
-  msg[2] = ' ';                  // #3.
+  joystickMsg[1] = '0' + rVal;           // For now, this is always one digit.  #2.
+  joystickMsg[2] = ' ';                  // #3.
 
   int downshiftedThetaVal = thetaVal - numThetaSectors;
   int tensDigit = downshiftedThetaVal / 10;
   int onesDigit = downshiftedThetaVal % 10;
 
-  msg[3] = '0' + tensDigit;      // #4.
-  msg[4] = '0' + onesDigit;      // #5.
-  msg[5] = ' ';                  // #6.
+  joystickMsg[3] = '0' + tensDigit;      // #4.
+  joystickMsg[4] = '0' + onesDigit;      // #5.
+  joystickMsg[5] = ' ';                  // #6.
 
   int checksum = rVal + downshiftedThetaVal;
   tensDigit = checksum / 10;
   onesDigit = checksum % 10;
 
-  msg[6] = '0' + tensDigit;      // #7.
-  msg[7] = '0' + onesDigit;      // #8.
-  msg[8] = '\0';
+  joystickMsg[6] = '0' + tensDigit;      // #7.
+  joystickMsg[7] = '0' + onesDigit;      // #8.
+  joystickMsg[8] = '\0';
 
-  displayOn1stLine( msg);
-//  Serial.println( msg);
+  displaySerial.write( 128);                // Move to (0,0).
+
+  displaySerial.print( joystickMsg);
+  Serial.println( joystickMsg); // Send our JoyStick command to the Robot.
 }
 
-void displayOn1stLine( char* msg)
+void clearJoyStickCmdDisplay()
 {
   displaySerial.write( 128);                // Move to (0,0).
-  displaySerial.print( msg);
+  displaySerial.print( "        ");
+}
+
+void displayVoltageMeasurement()
+{
+  char voltageMsg[6];
+  int batteryADC = analogRead( BATTERY_BLUE_WIRE);
+
+  // 1.54V on the Voltage Divider = 4.92V in "real life".
+  const float voltageDividerScaleFactor = 4.92 / 1.54;
+
+  // map( value, fromLow, fromHigh, toLow, toHigh);
+  int batteryMV = map( batteryADC, 0, 1023, 0, 330);      // Fio = 3.3V.
+
+  batteryMV = batteryMV * voltageDividerScaleFactor;
+
+  // 11111
+  // 56789
+  // 4.92V
+  //
+  int digit = batteryMV / 100;
+  batteryMV -= digit * 100;
+  voltageMsg[0] = '0' + digit;
+
+  voltageMsg[1] = '.';
+
+  digit = batteryMV / 10;
+  batteryMV -= digit * 10;
+  voltageMsg[2] = '0' + digit;
+  
+  digit = batteryMV % 10;
+  voltageMsg[3] = '0' + digit;
+
+  voltageMsg[4] = 'V';
+  voltageMsg[5] = '\0';
+  
+  displaySerial.write( 139);                // Move to (0,11).
+  displaySerial.print( voltageMsg);
 }
 
 void displayCharOn2ndLine( char c, int pos)
@@ -325,14 +368,44 @@ void displayCharOn2ndLine( char c, int pos)
   displaySerial.write( c);
 }
 
-void debounceButton( int buttonPinNum, int ledPinNum)
+void clear2ndLine()
 {
+  displaySerial.print( "                ");
+}
+
+const int displayCharsWidth = 16;
+//                     0123456789012345
+const char spaces[] = "                ";
+
+// Add const to arg to suppress warning when passing in literal string.
+//
+void displayOn2ndLine( const char* msg) 
+{
+  displaySerial.write( 148);                // Move to (1,0).
+  displaySerial.print( msg);
+
+  int startSpacesNdx = strlen( msg);
+  displaySerial.print( &(spaces[startSpacesNdx]));
+}
+
+int batteryMeasureCtr = 0;
+
+void operateDebouncedButton( int buttonPinNum, int ledPinNum)
+{
+  if (batteryMeasureCtr++ % 1000 == 0)
+    displayVoltageMeasurement();
+
+  // Eventually we'll make this more sophisticated, by reading the values 
+  // from an 8-position DIP switch from pins D2 thru D9, so the user can 
+  // specify which of a multitude of functions to run when the button is 
+  // pushed.
+  //
   curButtonState = digitalRead( buttonPinNum);
   
   if (curButtonState == HIGH && prevButtonState == LOW)
   {
     delay( 1);                      // Crude form of button debouncing.
-
+    
     if (ledState == HIGH)
     {
       digitalWrite( ledPinNum, LOW);
@@ -343,17 +416,25 @@ void debounceButton( int buttonPinNum, int ledPinNum)
       digitalWrite( ledPinNum, HIGH);
       ledState = HIGH;
     }
+    
+    if (blockedAwaitingReply)          // Give ourselves an out for when 
+    {                                  // we're tired of waiting.
+      displayOn2ndLine( "<JoyStick ready>");
+      clearJoyStickCmdDisplay();
+      blockedAwaitingReply = false;        
+      return;
+    }
   }
   prevButtonState = curButtonState;
 }
 
-int i = 0;
-char mbedMsg[10];
+char receivedMsg[100];
+int  receivedMsgNdx = 0;
 bool buttonState;
 
 void loop()
 {
-  debounceButton( SETDIRBUTTON, LED);
+  operateDebouncedButton( SETDIRBUTTON, LED);
   
   if (ledState)
     displaySerial.write( 17);                 // Turn backlight on.
@@ -361,11 +442,19 @@ void loop()
     displaySerial.write( 18);                 // Turn backlight off.
 
   if (get_R_Theta())
-    mbedPrint( mbedMsg);
-    
-  delay( 250);                    // Give the Robot time to respond.
+  {
+    if (!blockedAwaitingReply)
+    {
+      blockedAwaitingReply = true;
+      displayOn2ndLine( "<Btn> = end wait");
+
+      displayAndSendJoyStickCmd(); // Send the JoyStick command to the Robot.
+    }
+  }
+  delay( 250);                     // Give the Robot time to respond.
 
   bool firstChar = true;
+  
   while (Serial.available())
   {
     char c = Serial.read();
@@ -373,14 +462,21 @@ void loop()
     {
       if (firstChar)
       {
-        displaySerial.write( 12);                 // Clear.
-        delay( 5);                                // Required delay.
-        displayOn1stLine( mbedMsg);
         firstChar = false;
-        i = 0;
+        receivedMsgNdx = 0;
       }
-      displayCharOn2ndLine( c, i++);
+      receivedMsg[receivedMsgNdx++] = c;
     }
+  }
+
+  if (!firstChar)                 // We received some reply.
+  {
+    clearJoyStickCmdDisplay();
+
+    receivedMsg[receivedMsgNdx] = '\0';
+    displayOn2ndLine( receivedMsg);
+
+    blockedAwaitingReply = false; // Unblock us from sending another command.  
   }
 }
 
@@ -389,8 +485,8 @@ void plataDuckBulletin()
   displaySerial.write( 18);                 // Turn backlight off.
   displaySerial.write( 12);                 // Clear.
 
-  //  while( digitalRead( SETDIRBUTTON))
-  //  {};
+  //  while( digitalRead( SETDIRBUTTON))    // Wait patiently for the 
+  //  {};                                   // button to be pushed.
 
   displaySerial.write( 17);                 // Turn backlight on.
   delay( 5);                                // Required delay.
