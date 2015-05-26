@@ -50,6 +50,9 @@ int wheelRatios[numSpeedRanges];
 
 const int wheelRatioStep = 50 / numSpeedRanges;
 
+const int xBeeWaitMs = 20;		//  19200 baud to JoyStick's Display.
+const int mpiWaitMs   = 2;		// 115200 baud to the 3pi base.
+
 // wheelRatios[0] is a placeholder for Rotation.
 //
 void populateWheelRanges()
@@ -60,6 +63,35 @@ void populateWheelRanges()
 		wheelRatios[i] = wheelRatioStep * i;
 	}
 	wheelRatios[i] = 50;	// Ensure that we can drive straight :-).
+}
+
+void displayTurnVars1(
+	  int r, int theta,
+		int minusOneMovingBackwardPositiveOneForward,
+		int turningLeftNotRight)
+{
+	xBee.printf( 
+		"r%d T%d BF%d LR%d", 
+		r, theta,
+		minusOneMovingBackwardPositiveOneForward,
+		turningLeftNotRight);	
+	
+		wait_ms( xBeeWaitMs);				// Give the JoyStick time to display this message.
+}
+
+void displayTurnVars2(
+	  int r, int theta,
+		int minusOneMovingBackwardPositiveOneForward,
+		int turningLeftNotRight, int rotationSpeed)
+{
+	xBee.printf( 
+		"r%d T%d BF%d LR%d R%d",
+		r, theta,
+		minusOneMovingBackwardPositiveOneForward,
+		turningLeftNotRight,
+		rotationSpeed);
+	
+		wait_ms( xBeeWaitMs);				// Give the JoyStick time to display this message.
 }
 
 //                    forward
@@ -91,7 +123,12 @@ void turn( int r, int theta)
 {
 	if (r == 0)
 	{
-		mpi.stop();
+		xBee.printf( "All stop.");
+		wait_ms( xBeeWaitMs);						// Give the JoyStick time to print this message.
+
+		mpi.stop();							// the Stop command.
+		wait_ms( mpiWaitMs);		// Give the Robot time to stop. 
+
 		return;
 	}
 	
@@ -129,8 +166,7 @@ void turn( int r, int theta)
 	if (turningLeftNotRight)
 		theta = halfNumThetaSectors - theta;
 	
-	xBee.printf( 
-		"r%d T%d BF%d LR%d", 
+	displayTurnVars1(
 		r, theta,
 		minusOneMovingBackwardPositiveOneForward,
 		turningLeftNotRight);
@@ -139,11 +175,18 @@ void turn( int r, int theta)
 	//	
 	if (minusOneMovingBackwardPositiveOneForward == 0)
 	{
-		float rotationSpeed = (float)r / numRadiusBands; // / 4; // (run slower).
+		float rotationSpeed = 1.0 * r / numRadiusBands; // / 4; // (run slower).
+		
+	displayTurnVars2(
+		r, theta,
+		minusOneMovingBackwardPositiveOneForward,
+		turningLeftNotRight, int( abs( rotationSpeed) * 10));
 		
 		mpi.motor( 1 - turningLeftNotRight,  rotationSpeed);
-		wait_ms( 50);
+		wait_ms( mpiWaitMs);
+
 		mpi.motor(     turningLeftNotRight, -rotationSpeed);
+		wait_ms( mpiWaitMs);
 		
 		return;
 	}
@@ -151,20 +194,26 @@ void turn( int r, int theta)
 	float fasterWheelRatio =        wheelRatios[theta]  * r / 500.0 / 4;
 	float slowerWheelRatio = (100 - wheelRatios[theta]) * r / 500.0 / 4;
 	
+	xBee.printf( 
+		"fWR=%3.1f sWR=%3.1f",
+	  fasterWheelRatio, slowerWheelRatio);
+	
+	wait_ms( xBeeWaitMs);				// Give the JoyStick time to display this message.
+	
 	// Need to handle Rotation (= theta == 0), using turningLeftNotRight.
 	//
 	// Need to damp down the speed (r), from the commanded speed, down 
 	// to 0 for rotation.
 	//
   mpi.motor( 
-		1 - turningLeftNotRight, 
-		fasterWheelRatio * minusOneMovingBackwardPositiveOneForward);
-	
-	wait_ms( 50);
+		turningLeftNotRight, 
+		fasterWheelRatio * minusOneMovingBackwardPositiveOneForward);	
+	wait_ms( mpiWaitMs);
 
   mpi.motor( 
-		turningLeftNotRight, 
+		1 - turningLeftNotRight, 
 		slowerWheelRatio * minusOneMovingBackwardPositiveOneForward);
+	wait_ms( mpiWaitMs);
 	
 	return;
 }
@@ -297,7 +346,7 @@ bool processDrivingCmd( char* cmd, char* errorMsg)
 		return false;
 	}
 	
-	pc.printf( "rVal = '%d', thetaVal = '%d'\r", rVal, thetaVal);
+//	pc.printf( "rVal = '%d', thetaVal = '%d'\r", rVal, thetaVal);
 
 	// Call our fancy new turning function.
 	//	
@@ -305,6 +354,33 @@ bool processDrivingCmd( char* cmd, char* errorMsg)
 	
 	return true;
 }
+
+char batteryDisplayMsg[10] = "B=0000mV";
+bool deadBatteryNotNotified = true;
+bool robotBatteryIsDead = false;
+int robotBatteryLevel = 0;
+	
+void displayBatteryValue()
+{
+	mpi.locate( 0,0);
+	
+	mpi.print( batteryDisplayMsg, strlen( batteryDisplayMsg));
+	wait_ms( mpiWaitMs);				// Give the Robot time to display this message.
+}
+
+void updateBatteryValue()
+{
+	robotBatteryLevel = mpi.battery() * 1000;
+
+	int rbl = robotBatteryLevel;
+
+	for (int i = 5 ; i >= 2 ; i--)
+	{
+		batteryDisplayMsg[i] = '0' + rbl % 10;
+		rbl /= 10;
+	}	
+}
+Ticker tickr;
 
 int main() 
 {
@@ -320,70 +396,106 @@ int main()
 	// the mp3i Library's approach, and then hopefully we'll have 
 	// a RPCFunction()-registration Class that works.
 	//	
-	mpi.leds( 0x0);		// Let's save our battery a bit for now.
+	char mpiMsg[] = "JOYSTICK", c;
 
 	mpi.locate( 0, 1);
-	char msg[] = "JOYSTICK";
-	mpi.print( msg, strlen( msg));
+	mpi.print( mpiMsg, strlen( mpiMsg));	
+	mpi.leds( 0x0);		// Let's save our battery a bit for now.
 
 	pc.baud(   57600);
 	xBee.baud( 57600);
 	
 	populateWheelRanges();
 	
-	int bufLen = 0;
-  char buf[BUFLEN] = "";
-	char pbuf[BUFLEN], processResult[BUFLEN];
-	int batteryDisplayCount = 0;
+	int joyStickBufLen = 0, pcBufLen = 0;
+  char joyStickBuf[BUFLEN] = "";
+	char processResult[BUFLEN];
+	char pcBuf[BUFLEN] = "";
+
+	updateBatteryValue();	// Call them once at the beginning then via Ticker.
+	displayBatteryValue();
+	
+//	tickr.attach( &updateBatteryValue, 10.0);		// Update the value every 10 sec.
 
 	while (1)
 	{
-			if (!xBee.readable())
-				continue;
+		if (deadBatteryNotNotified && robotBatteryLevel < 4400)
+		{				     // 1234567890123456.
+			xBee.printf( "He's dead, Jim.");
+			wait_ms( 1500);				// Give the user time to read this message.
+			xBee.printf( "=Robot bat. dead");
+			wait_ms( xBeeWaitMs);	// Give the JoyStick time to display this message.
 
-			char c = xBee.getc();
-			pc.putc( c);
-			
-			if (bufLen >= BUFLEN || c == '\r' || c == '\n')
-			{
-				buf[bufLen] = '\0';		// Null-terminate our received cmd.
-				
-				pc.printf( "%s\r\n", buf);
-				
-				processResult[0] = '\0';
-				bool processingSucceeded = processDrivingCmd( buf, processResult); 
+			deadBatteryNotNotified = false;
+			robotBatteryIsDead = true;
+		}
+		
+		while (pc.readable())			// Give us a way to type in a message to send to
+		{													// the JoyStick.
+			c = pc.getc();
+			pcBuf[pcBufLen++] = c;	
+			wait_ms( 1);						// Is another char coming?
+		}
 
-				if (batteryDisplayCount % 100 > 20)
-				{
-					mpi.locate( 0, 0);
-					
-					if (!processingSucceeded)
-						sprintf( msg, "%-8s", processResult);
-					else
-					{
-						sprintf( pbuf, "%-4s L=%d", buf, strlen( buf));
-						sprintf( msg, "%-8s", pbuf);
-					}
+		if (pcBufLen > 0)
+		{
+			// Stomp any received EOL char, so we don't send it to the JoyStick.
+			if (pcBuf[pcBufLen - 1] == '\r' || pcBuf[pcBufLen - 1] == '\n')
+				pcBuf[pcBufLen - 1] = '\0';
+			else
+				pcBuf[pcBufLen] = '\0';
 
-					pc.printf( "%s\r\n", msg);
-					mpi.print( msg, strlen( msg));
-				}
-				wait_ms( 10);
-				
-				bufLen = 0;
-				pc.printf( "\r");
-			}
-			else						
-				buf[bufLen++] = c;
-			
-			batteryDisplayCount++;
-			
-			if (batteryDisplayCount % 100 == 0)
-			{
-				mpi.locate( 0,0);
-				sprintf( msg, "B=%4dmV", int( mpi.battery() * 1000));
-				mpi.print( msg, strlen( msg));
-			}
+			pcBufLen = 0;
+			xBee.printf( "%s", pcBuf);
+		}
+
+		if (!xBee.readable())
+			continue;
+
+		c = xBee.getc();
+		pc.putc( c);
+		
+		if (joyStickBufLen < BUFLEN && c != '\r' && c != '\n')
+		{
+			joyStickBuf[joyStickBufLen++] = c;
+			continue;
+		}															// The JoyStick sends us an EOL of {13,10}.
+
+		if (joyStickBufLen == 0)			// We received an EOL of "\n\r", or a blank line,
+			continue;										// so disgard it and start over.
+		else
+			joyStickBuf[joyStickBufLen] = '\0';		// Null-terminate our received cmd.
+		
+		pc.printf( "joyStickBuf = >%s<\r\n", joyStickBuf);
+		
+		processResult[0] = '\0';	// Give the Robot time to prepare to receive
+		wait_ms( 10);							// our response.
+		bool processingSucceeded = processDrivingCmd( joyStickBuf, processResult); 
+
+		if (!processingSucceeded)
+			sprintf( mpiMsg, "%-8s", processResult);
+		else
+		{
+			int originaljoyStickBufLen = strlen( joyStickBuf);
+
+			// joyStickBuf = "!1 02 03".
+			joyStickBuf[5] = '\0';			// We only want to see r & theta on Robot.
+			sprintf( mpiMsg, "%-4s L=%d", &(joyStickBuf[1]), originaljoyStickBufLen);
+		}
+
+		pc.printf( "%s\r\n", mpiMsg);
+		
+		mpi.locate( 0, 0);				
+		mpi.print( mpiMsg, strlen( mpiMsg));
+		wait_ms( mpiWaitMs);					// Give the Robot time to display this message.
+
+		displayBatteryValue();
+
+		joyStickBufLen = 0;
+		pc.printf( "\r");
+		
+		wait_ms( 2000);								// Just for now for testing.
+		mpi.stop();
 	}
 	
 	return 1;

@@ -716,5 +716,44 @@ JoyStick input is enabled.
 The photo "Wireless Debugging message received from Robot.jpg" shows the JoyStick wirelessly
 receiving a debugging message from the Robot.
 
+Update:
+------
+
+The JoyStick's debugging Display is starting to bear fruit.  
+
+On the minus side, it is apparently suffering from overruns due to data arriving too 
+fast from the Robot to be pushed to the Display at its max. 19200 baud rate.
+
+I've somewhat addressed this by adding wait_ms() everywhere I send to the JoyStick.
+
+Data on the Display is still intermittently appearing in the wrong place, so some 
+more wait_ms()'s are no doubt required, to allow the Display time to keep up.
+
+On the plus side, having the Robot's debugging messages appear on the JoyStick Display
+while the Robot is driving around is proving helpful, with the result that the Robot 
+is now much closer to turning in the directions directed by the JoyStick.  
+
+For safety during testing, I have the Robot stop itself 2 sec. after receiving any 
+driving/rotation command.
+
+All of {left,right}{rotation,turn}{forward,backward} seem to be working at at least 
+a rudimentary level.  
+
+The only caveat is that the Rotation speed suddenly increases after a second or so.  
+This may be due to the base 3pi robot's PID code kicking in.  I'll have to check if 
+it's on by default, and disable it until I iron out most of my bugs.
+
+Now when the Robot detects that its battery is getting low, it sends:
+
+    "He's dead, Jim."
+	
+to appear on the JoyStick's Display :-).
+
+And for when the Robot is "tethered", I added the capability for the user to type in
+arbitrary text in the Robot's Serial Terminal window, which is sent to the JoyStick. 
+ 
+This is handy to unstick the JoyStick, when it's waiting in vain for a response from 
+the Robot, and to test the sending of future commands to the JoyStick.
+
 Results/Solutions:
 -----------------
