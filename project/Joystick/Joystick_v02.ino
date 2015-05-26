@@ -223,7 +223,7 @@ SoftwareSerial displaySerial =
 
 bool ledState             = HIGH;
 bool curButtonState       = ledState;
-bool prevButtonState      = !curButtonState;
+bool prevButtonState      = curButtonState;
 bool blockedAwaitingReply = false;
 
 void setup()
@@ -253,6 +253,98 @@ void setup()
   setRadiusRangeValues();
 
   displayOn2ndLine( "<JoyStick ready>");
+}
+
+char receivedMsg[100];
+int  receivedMsgNdx = 0;
+bool buttonState;
+
+void loop()
+{
+  operateDebouncedButton( SETDIRBUTTON, LED);
+
+  if (ledState)
+    displaySerial.write( 17);                 // Turn backlight on.
+  else
+    displaySerial.write( 18);                 // Turn backlight off.
+
+  if (get_R_Theta())
+  {
+    if (!blockedAwaitingReply)
+    {
+      blockedAwaitingReply = true;
+      displayOn2ndLine( "<Btn> = end wait");
+
+      displayAndSendJoyStickCmd(); // Send the JoyStick command to the Robot.
+    }
+  }
+  delay( 250);                     // Give the Robot time to respond.
+
+  bool firstChar = true;
+  
+  while (Serial.available())
+  {
+    char c = Serial.read();
+    if (c != '\r' && c != '\n')
+    {
+      if (firstChar)
+      {
+        firstChar = false;
+        receivedMsgNdx = 0;
+      }
+      receivedMsg[receivedMsgNdx++] = c;
+    }
+  }
+
+  if (!firstChar)                 // We received some reply.
+  {
+    clearJoyStickCmdDisplay();
+
+    receivedMsg[receivedMsgNdx] = '\0';
+    displayOn2ndLine( receivedMsg);
+
+    blockedAwaitingReply = false; // Unblock us from sending another command.  
+  }
+}
+
+int batteryMeasureCtr = 0;
+
+void operateDebouncedButton( int buttonPinNum, int ledPinNum)
+{
+  if (batteryMeasureCtr++ % 1000 == 0)
+    displayVoltageMeasurement();
+
+  // Eventually we'll make this more sophisticated, by reading the values 
+  // from an 8-position DIP switch from pins D2 thru D9, so the user can 
+  // specify which of a multitude of functions to run when the button is 
+  // pushed.
+  //
+  curButtonState = digitalRead( buttonPinNum);
+  
+  if (curButtonState == HIGH && prevButtonState == LOW)
+  {
+    delay( 1);                      // Crude form of button debouncing.
+    
+    if (ledState == HIGH)
+    {
+      digitalWrite( ledPinNum, LOW);
+      ledState = LOW;
+    } 
+    else 
+    {
+      digitalWrite( ledPinNum, HIGH);
+      ledState = HIGH;
+    }
+    
+    if (blockedAwaitingReply)          // Give ourselves an out for when 
+    {                                  // we're tired of waiting.
+      displayOn2ndLine( "<JoyStick ready>");
+      clearJoyStickCmdDisplay();
+      blockedAwaitingReply = false;        
+      return;
+    }
+  }
+  prevButtonState = curButtonState;
 }
 
 void debugPrint()
@@ -373,111 +465,21 @@ void clear2ndLine()
   displaySerial.print( "                ");
 }
 
-const int displayCharsWidth = 16;
-//                     0123456789012345
-const char spaces[] = "                ";
-
 // Add const to arg to suppress warning when passing in literal string.
 //
 void displayOn2ndLine( const char* msg) 
 {
+  const int displayCharsWidth = 16;
+  //                     0123456789012345
+  const char spaces[] = "                ";
+
   displaySerial.write( 148);                // Move to (1,0).
   displaySerial.print( msg);
 
   int startSpacesNdx = strlen( msg);
-  displaySerial.print( &(spaces[startSpacesNdx]));
-}
 
-int batteryMeasureCtr = 0;
-
-void operateDebouncedButton( int buttonPinNum, int ledPinNum)
-{
-  if (batteryMeasureCtr++ % 1000 == 0)
-    displayVoltageMeasurement();
-
-  // Eventually we'll make this more sophisticated, by reading the values 
-  // from an 8-position DIP switch from pins D2 thru D9, so the user can 
-  // specify which of a multitude of functions to run when the button is 
-  // pushed.
-  //
-  curButtonState = digitalRead( buttonPinNum);
-  
-  if (curButtonState == HIGH && prevButtonState == LOW)
-  {
-    delay( 1);                      // Crude form of button debouncing.
-    
-    if (ledState == HIGH)
-    {
-      digitalWrite( ledPinNum, LOW);
-      ledState = LOW;
-    } 
-    else 
-    {
-      digitalWrite( ledPinNum, HIGH);
-      ledState = HIGH;
-    }
-    
-    if (blockedAwaitingReply)          // Give ourselves an out for when 
-    {                                  // we're tired of waiting.
-      displayOn2ndLine( "<JoyStick ready>");
-      clearJoyStickCmdDisplay();
-      blockedAwaitingReply = false;        
-      return;
-    }
-  }
-  prevButtonState = curButtonState;
-}
-
-char receivedMsg[100];
-int  receivedMsgNdx = 0;
-bool buttonState;
-
-void loop()
-{
-  operateDebouncedButton( SETDIRBUTTON, LED);
-  
-  if (ledState)
-    displaySerial.write( 17);                 // Turn backlight on.
-  else
-    displaySerial.write( 18);                 // Turn backlight off.
-
-  if (get_R_Theta())
-  {
-    if (!blockedAwaitingReply)
-    {
-      blockedAwaitingReply = true;
-      displayOn2ndLine( "<Btn> = end wait");
-
-      displayAndSendJoyStickCmd(); // Send the JoyStick command to the Robot.
-    }
-  }
-  delay( 250);                     // Give the Robot time to respond.
-
-  bool firstChar = true;
-  
-  while (Serial.available())
-  {
-    char c = Serial.read();
-    if (c != '\r' && c != '\n')
-    {
-      if (firstChar)
-      {
-        firstChar = false;
-        receivedMsgNdx = 0;
-      }
-      receivedMsg[receivedMsgNdx++] = c;
-    }
-  }
-
-  if (!firstChar)                 // We received some reply.
-  {
-    clearJoyStickCmdDisplay();
-
-    receivedMsg[receivedMsgNdx] = '\0';
-    displayOn2ndLine( receivedMsg);
-
-    blockedAwaitingReply = false; // Unblock us from sending another command.  
-  }
+  if (startSpacesNdx < strlen( spaces))
+    displaySerial.print( &(spaces[startSpacesNdx]));
 }
 
 void plataDuckBulletin()
