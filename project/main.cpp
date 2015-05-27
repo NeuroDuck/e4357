@@ -175,12 +175,12 @@ void turn( int r, int theta)
 	//	
 	if (minusOneMovingBackwardPositiveOneForward == 0)
 	{
-		float rotationSpeed = 1.0 * r / numRadiusBands; // / 4; // (run slower).
+		float rotationSpeed = 1.0 * r / numRadiusBands / 8; // (rotate slower).
 		
-	displayTurnVars2(
-		r, theta,
-		minusOneMovingBackwardPositiveOneForward,
-		turningLeftNotRight, int( abs( rotationSpeed) * 10));
+		displayTurnVars2(
+			r, theta,
+			minusOneMovingBackwardPositiveOneForward,
+			turningLeftNotRight, int( abs( rotationSpeed) * 10));
 		
 		mpi.motor( 1 - turningLeftNotRight,  rotationSpeed);
 		wait_ms( mpiWaitMs);
@@ -190,9 +190,13 @@ void turn( int r, int theta)
 		
 		return;
 	}
-
-	float fasterWheelRatio =        wheelRatios[theta]  * r / 500.0 / 4;
-	float slowerWheelRatio = (100 - wheelRatios[theta]) * r / 500.0 / 4;
+	else if (theta != forwardTheta)					// == We're turning.
+	{
+		 theta = 3;			// Limit us to the most gradual turn of the 3 for now.
+	}
+	
+	float fasterWheelRatio =        wheelRatios[theta]  * r / 500.0;
+	float slowerWheelRatio = (100 - wheelRatios[theta]) * r / 500.0;
 	
 	xBee.printf( 
 		"fWR=%3.1f sWR=%3.1f",
@@ -494,8 +498,8 @@ int main()
 		joyStickBufLen = 0;
 		pc.printf( "\r");
 		
-		wait_ms( 2000);								// Just for now for testing.
-		mpi.stop();
+//		wait_ms( 2000);								// Just for now for testing.
+//		mpi.stop();
 	}
 	
 	return 1;
