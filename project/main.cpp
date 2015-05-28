@@ -10,10 +10,12 @@
 //
 #include "mbed.h"
 #include "m3pi/m3pi.h"
+#include <LSM303DM\LSM303.h>
 
 m3pi   mpi;
 Serial pc(   USBTX, USBRX); // tx, rx
 Serial xBee( p28,   p27);
+LSM303 compass;
 
 int signI( int i)
 {
@@ -418,6 +420,8 @@ int main()
 
 	updateBatteryValue();	// Call them once at the beginning then via Ticker.
 	displayBatteryValue();
+	
+	compass.setup();
 	
 //	tickr.attach( &updateBatteryValue, 10.0);		// Update the value every 10 sec.
 

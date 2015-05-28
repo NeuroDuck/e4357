@@ -755,5 +755,127 @@ arbitrary text in the Robot's Serial Terminal window, which is sent to the JoySt
 This is handy to unstick the JoyStick, when it's waiting in vain for a response from 
 the Robot, and to test the sending of future commands to the JoyStick.
 
+Update:
+------
+
+I checked in some small tuning changes to the Steering algorithm, so now I'm starting
+to test my old Compass that I bought a few years back:
+
+    LSM303DLM 3D Compass and Accelerometer Carrier with Voltage Regulators ($5.95)
+    https://www.pololu.com/product/1273
+
+which is being phased out, so I also bought this new one:
+
+    LSM303D 3D Compass and Accelerometer Carrier with Voltage Regulator ($9.95)
+    https://www.pololu.com/product/2127
+
+Alas, as shown in:
+
+    "project/Compass/m3pi_I2C-Conflict_Schematic.gif"
+	
+both pairs of I2C bins being used for something else.  I.e., the mbed uses p9 & p10 
+to tell the “downstairs Robot” to spin the wheels, report the Battery Voltage, etc.,
+and it uses p27 & p28 to talk with the XBee radio.
+
+Luckily, here:
+
+    http://forum.pololu.com/viewtopic.php?f=29&t=6187
+
+I found that there is a SoftwareI2C Library available here:
+
+	https://developer.mbed.org/users/p3p/code/SoftwareI2C/docs/8670e78c4b63/SoftwareI2C_8h_source.html
+	
+that can do I2C on any two unused Pins, so I'll try that out.
+
+Update:
+------
+
+Aside: While working in Panera, where all the Wi-Fi users may make for a noisy environment,
+	   I found that when doing my Wireless Programming of my Fio via XBee (w/transmission 
+	   power set = "LOWEST"), my max. Wireless Programming range was ~6-7 inches.  Really, 
+	   trying to program at 10 inches away, I was only able to succeed about 1 time in 10 
+	   tries.
+
+Re: Sonar, Pololu has a very helpful beam width/depth chart here:
+
+	https://www.pololu.com/picture/view/0J1969
+
+	The manufacturer's Selection Guilde is here:
+	
+	http://www.maxbotix.com/SelectionGuide/Selection-Guide.htm
+	
+	And their FAQ is here:
+	
+	http://www.maxbotix.com/tutorials.htm
+	
+	Ah, here's a better beam comparison chart:
+	
+	http://www.maxbotix.com/pictures/HRLV/HRLV-EZ%20Sensor%20Beam%20Patterns.gif
+	
+Re: Thin LiPo Batteries: Can 2 thin 1S 1Ah LiPo's be safely wired together in series,
+	wire terminals-to-wire terminals (nose-to-nose), to make a thin 2S battery pack?
+
+Re: XBees: #0 goes in my USB Dongle	   (Dest=0xff)
+		   #1 in the JoyStick		   (Dest=#2)
+		   #2 goes in the mbed Robot   (Dest=#1)
+		   #3 goes in the Rover5 Robot (Dest=#0)
+	All programmed using my checked-in .pro files using digi.com's free X-CTU program.
+	
+Update:
+------
+
+Checking in project/Compass/calibrate_Compass.cpp, which is used to determine your 
+particular Compass's full-scale values, in your particular environment, to help it
+give more accurate readings.
+
+Following up on what I wrote above, the SoftwareI2C library is working well.
+
+I checked in my versions of developer.mbed.org's libraries: LSM303DM & SoftwareI2C, 
+as I had to slightly modify both to allow them to compile together.
+
+I added a bit of the DIPswitch support to the JoyStick.  Now is the point where it 
+would be handy to use one of the mbed RPC libraries, but they all seem to be out-of-date
+(read: don't compile against the current mbed library).
+
+So I'll add to the existing syntax (see the next update below) that I'm already parsing, 
+and use it to send my commands and queries to the Robot.
+
+The intention is that I will add 8 or more tiny switches (currently they're just wires to 
+Ground).
+
+When the user pushes "the Button", functions in the Robot will be run, selected by 
+whichever of the DIPswitches are in their "active" state.  I'll probably create some
+sort of primitive way for the user to specify an argument to them as well.
+
+I'll be adding a Compass to both the JoyStick and the Robot, so the Robot can steer 
+relative to the JoyStick's "forward" direction, rather than relative to the Robot's 
+"forward".
+
+On the JoyStick's Arduino Fio, D2-D10 (= 9 bits) and A0-A4 (= 5 bits) are available 
+for use as DIPswitches.
+
+Currently I'm envisioning using 4 of these bits to specify a heading argument for my 
+function calls to the Robot (the JoyStick only produces 16 heading values, 2 of which 
+are "turn-on-a-dime", rather than forward/backward motion.
+
+Likewise 3 bits can be for invoking one of 8 Robot functions.
+
+The remaining 7 bits for can be for invoking one or all of 7 different Robot functions.
+
+More on this in the next update (already partially fleshed out below).
+
+Update:
+------
+
+Next: Write up DIP Switch-driven command syntax to send to the Robot.
+
+To wit:
+	!r th cc   Driving command: r=0-9 speed, th=0-15 direction, cc=checksum.
+	@xxx[=yyy] Query or set parameter xxx [to yyy] in the Robot's Parameters assoc. array.
+	%xxx[=yyy] Do the same in the JoyStick.
+	*xx nn cc  Call function xx on the Robot (specified by the JoyStick's DIPswitches), 
+			   with nn arguments to follow, and cc=checksum.
+	(argVal cc An argument for the previous Robot function call.
+
 Results/Solutions:
 -----------------

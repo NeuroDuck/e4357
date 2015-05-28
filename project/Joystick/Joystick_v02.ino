@@ -4,8 +4,10 @@
 #define BATTERY_BLUE_WIRE  A5    // Analog.
 #define HORIZ_ORANGE_WIRE  A7    // Analog.
 #define VERT_GREEN_WIRE    A6    // Analog.
-#define DISPLAY_GREEN_WIRE 11    // Digital.
-#define SETDIRBUTTON       12
+#define FIRST_DIP_SWITCH    2    // Digital.
+#define LAST_DIP_SWITCH    10    // Digital.
+#define SET_DIR_BUTTON     11    // Digital.
+#define DISPLAY_GREEN_WIRE 12    // Digital.
 #define LED                13
 
 const int xMin    =    0;    // or 1, or 2.
@@ -217,18 +219,82 @@ boolean get_R_Theta()
   return changed;
 }
 
+bool setDipSwitchPinMode( int pinNum, bool bValue, char *cValuePtr)
+{
+  pinMode( pinNum, INPUT_PULLUP);
+  
+  return true;                    // All is well.
+}
+                       // 11
+                       // 1098765432
+char dipSwitchStates[] = "0000000000";
+                       // 0123456789
+
+// Loop through the DIP Switches, calling processValueFunction() for each
+// of them.
+// processValueFunction() will be called with these values for each Switch:
+//  pinNum == the Pin# on the Arduino Fio board.
+//  bValue == the Pin's current value as a bool.
+//  cValuePtr == a pointer to the char representing the value, that is sent
+//            to the Robot.  This is to allow modification of the stored char.
+//
+inline int getDipSwitchCharNdx( int pinNum)
+{
+  return SET_DIR_BUTTON - pinNum;
+}
+
+inline bool getDipSwitchStateFromPinNum( int pinNum)
+{
+  return dipSwitchStates[getDipSwitchCharNdx( pinNum)] - '0';
+}
+
+inline bool getDipSwitchStateFromCharNdx( int charNdx)
+{
+  return dipSwitchStates[charNdx] - '0';
+}
+
+bool callThisFunctionForEveryDipSwitch(
+  bool (*processValueFunction)(int pinNum, bool bValue, char *cValuePtr))
+{
+  bool result = false;
+  
+  for (int pinNum = FIRST_DIP_SWITCH ; pinNum <= SET_DIR_BUTTON ; pinNum++)
+  {
+    int charNdx = getDipSwitchCharNdx( pinNum);
+    bool bValue = getDipSwitchStateFromCharNdx( charNdx);
+    char* cValuePtr = &(dipSwitchStates[charNdx]);
+
+    result |= (*processValueFunction)( pinNum, bValue, cValuePtr);
+  }
+  
+  return result;
+}
+
+bool callThisFunctionForThisDipSwitch(
+  bool (*processValueFunction)(int pinNum, bool bValue, char *cValuePtr),
+  int pinNum)
+{
+    int charNdx = getDipSwitchCharNdx( pinNum);
+    bool bValue = getDipSwitchStateFromCharNdx( charNdx);
+    char* cValuePtr = &(dipSwitchStates[charNdx]);
+
+    bool result = (*processValueFunction)( pinNum, bValue, cValuePtr);
+
+    return result;
+}
+
 #include <SoftwareSerial.h>
 SoftwareSerial displaySerial =
   SoftwareSerial( 255, DISPLAY_GREEN_WIRE);
 
-bool ledState             = HIGH;
-bool curButtonState       = ledState;
-bool prevButtonState      = curButtonState;
-bool blockedAwaitingReply = false;
+// Our PushButton's Input Pin has a Pullup Resistor, so the LED should be 
+// HIGH by default.
+//
+bool ledState             = HIGH;  
 
 void setup()
 {
-  // Fio needs to start this way to support Wireless Programming.
+  // Fio needs to start this way to support Wireless Programmng.
   //
   Serial.begin( 57600);
   displaySerial.begin( 19200);  // Let's get the chars displayed quickly.
@@ -237,9 +303,14 @@ void setup()
   // Our "Set" Button has the internal pull-up resistor enabled,
   // so LOW == Button is being pushed.
   //
-  pinMode( SETDIRBUTTON, INPUT_PULLUP);
   pinMode( LED, OUTPUT);
   pinMode( DISPLAY_GREEN_WIRE, OUTPUT);
+  
+  // Set up all our DIP Switches (FIRST_DIP_SWITCH thru LAST_DIP_SWITCH)
+  // and SET_DIR_BUTTON, to be inputs with Pull-Up Resistors enabled, so
+  // we can use a simple switch to ground to change their states.
+  //
+  callThisFunctionForEveryDipSwitch( setDipSwitchPinMode);
 
   displaySerial.write( 12);                 // Clear.
   delay( 5);                                // Required delay.
@@ -257,16 +328,26 @@ void setup()
 
 char receivedMsg[100];
 int  receivedMsgNdx = 0;
-bool buttonState;
 
-void loop()
+int dssCtr = 0;
+int batteryMeasureCtr = 0;
+bool blockedAwaitingReply = false;
+
+void loop()      
 {
-  operateDebouncedButton( SETDIRBUTTON, LED);
+  const int loopsToSkipChecking = 150;
+  
+  // Let's not spend _all_ of our time doing this.  This is a good value 
+  // to catch very brief button-presses.
+  //
+  if (dssCtr++ % loopsToSkipChecking == 0)     
+    updateDipSwitchStates();    
 
-  if (ledState)
-    displaySerial.write( 17);                 // Turn backlight on.
-  else
-    displaySerial.write( 18);                 // Turn backlight off.
+  if (batteryMeasureCtr++ % 10000 == 0)              // Ditto.
+    displayVoltageMeasurement();
+
+  if (dssCtr % loopsToSkipChecking == 0)     
+    operateDebouncedButton( SET_DIR_BUTTON, LED);    // Ditto.
 
   if (get_R_Theta())
   {
@@ -276,9 +357,9 @@ void loop()
       displayOn2ndLine( "<Btn> = end wait");
 
       displayAndSendJoyStickCmd(); // Send the JoyStick command to the Robot.
+      delay( 250);                     // Give the Robot time to respond.
     }
   }
-  delay( 250);                     // Give the Robot time to respond.
 
   bool firstChar = true;
   
@@ -296,7 +377,7 @@ void loop()
     }
   }
 
-  if (!firstChar)                 // We received some reply.
+  if (!firstChar)                           // We received some reply.
   {
     clearJoyStickCmdDisplay();
 
@@ -307,20 +388,65 @@ void loop()
   }
 }
 
-int batteryMeasureCtr = 0;
+bool readDipSwitchStateAndStoreIt( int pinNum, bool bValue, char *cValuePtr)
+{
+  char newCValue = '0' + digitalRead( pinNum);
+  
+  bool changed = (*cValuePtr != newCValue);
+  
+  *cValuePtr = newCValue;
+  
+  return changed;           // We want to know if any Switches changed state.
+}
 
+void updateDipSwitchStates()
+{
+  bool aDipSwitchChanged = 
+    callThisFunctionForEveryDipSwitch( readDipSwitchStateAndStoreIt);
+
+  if (aDipSwitchChanged)
+  {
+    Serial.print( "Switches changed. (");
+    Serial.print( dipSwitchStates);
+    Serial.println( ")");
+  }
+  
+  displayOn2ndLine( dipSwitchStates); 
+}
+
+// Our SET_DIR_BUTTON has a PullUp, so it's LOW only when it's currently 
+// being pushed.
+//
+// We initialize ledState to HIGH.
+//
+bool curButtonState       = ledState;        
+
+// We want to block Button processing until right after it's been released.
+//
+bool prevButtonState      = curButtonState;  
+
+// Each time after we push then release the Button, the LED should toggle.
+//
+// Check the values of the DIPSwitches, and call the functions 
+// corresponding to the Switches that are HIGH.
+//
+// The higher-order bits (i.e., D6-D10) control independent invocation of 
+// particular individual functions, so multiple functions in this category
+// can be invoked each time the SET_DIR_BUTTON is pushed, specified by 
+// which of these Switches are HIGH.
+//
+// The lower-order bits (D2-D5) of the Switches form a bit-field.  Only 
+// one of the 16 possible functions is called when the SET_DIR_BUTTON is 
+// pushed.
+//
 void operateDebouncedButton( int buttonPinNum, int ledPinNum)
 {
-  if (batteryMeasureCtr++ % 1000 == 0)
-    displayVoltageMeasurement();
-
-  // Eventually we'll make this more sophisticated, by reading the values 
-  // from an 8-position DIP switch from pins D2 thru D9, so the user can 
-  // specify which of a multitude of functions to run when the button is 
-  // pushed.
-  //
-  curButtonState = digitalRead( buttonPinNum);
+  curButtonState = digitalRead( buttonPinNum);  // Usually == SET_DIR_BUTTON.
   
+  // We only want to handle the ButtonWasReleased situation.
+  //
+  // The if below will catch the Button being LOW, then being HIGH. 
+  // 
   if (curButtonState == HIGH && prevButtonState == LOW)
   {
     delay( 1);                      // Crude form of button debouncing.
@@ -329,11 +455,13 @@ void operateDebouncedButton( int buttonPinNum, int ledPinNum)
     {
       digitalWrite( ledPinNum, LOW);
       ledState = LOW;
+      displaySerial.write( 18);                 // Turn backlight off.
     } 
     else 
     {
       digitalWrite( ledPinNum, HIGH);
       ledState = HIGH;
+      displaySerial.write( 17);                 // Turn backlight on.
     }
     
     if (blockedAwaitingReply)          // Give ourselves an out for when 
@@ -460,11 +588,6 @@ void displayCharOn2ndLine( char c, int pos)
   displaySerial.write( c);
 }
 
-void clear2ndLine()
-{
-  displaySerial.print( "                ");
-}
-
 // Add const to arg to suppress warning when passing in literal string.
 //
 void displayOn2ndLine( const char* msg) 
@@ -480,6 +603,8 @@ void displayOn2ndLine( const char* msg)
 
   if (startSpacesNdx < strlen( spaces))
     displaySerial.print( &(spaces[startSpacesNdx]));
+    
+  delay( 15);
 }
 
 void plataDuckBulletin()
