@@ -578,6 +578,9 @@ many theta values, at least for radius values <= 50% of full-scale.
 To address this, for radius values <= 6 (out of a maximum of 9), I now smash the 3 turn 
 values into only 1.
 
+[Edit: I should instead smash them into being the largest-radius turn of the 3, rather 
+       than the middle one.  I ultimately did this below.]
+
 I imagine that further testing will reveal that I'll basically have to just raise the 
 noise floor significantly above its current value of r=120, as the JoyStick just doesn't
 have enough angular resolution (to support having 3 different radii of turns) with 
@@ -590,11 +593,11 @@ Possibly due to having switched the XBees to the "LOWEST" transmission power set
 mbed is now receiving lots of garbled messages from the JoyStick.
 
 To address this, I've implemented a fixed-length 8-byte(+CR) JoyStick message format of 
-the form "!r tt ck", where:
+the form "!r tt cc", where:
 
 	r == JoyStick radius value
 	tt = JoyStick Theta value
-	ck == checksum (= sum of r + tt) value
+	cc == checksum (= sum of r + tt) value
 	
 In the mbed code, I added a simple parser function, that is called like this:
 
@@ -689,8 +692,8 @@ This will allow the user to choose which of a multitude of functions to run when
 is pushed.
 
 I'll also use one of the DIP switches to enable/disable "Wait for Robot reply before 
-allowing new JoyStick input", which blocks future JoyStick inputs, when awaiting a reply from
-the Robot to the previous JoyStick command sent to it.
+allowing new JoyStick input", which blocks future JoyStick inputs, when awaiting a reply 
+from the Robot to the previous JoyStick command sent to it.
 
 The photo "JoyStick Display-startup.jpg" shows the startup state of the JoyStick's new 
 Display, and the Voltage Divider I'm using to measure an (upcoming) 8.4V LiPo 2-Cell battery
@@ -758,24 +761,66 @@ the Robot, and to test the sending of future commands to the JoyStick.
 Update:
 ------
 
-I checked in some small tuning changes to the Steering algorithm, so now I'm starting
-to test my old Compass that I bought a few years back:
+I checked in some small tuning changes to the Steering algorithm.  
+
+I found that its ease-of-handling was greatly increased by damping down the Rotation
+rate.
+
+The Steering code is in lines 99-362 here:
+
+	https://github.com/NeuroDuck/e4357/blame/master/project/main.cpp
+	
+I fished through those changes, and found that the most helpful steering tweaks were
+probably these:
+
+	"Tune the Steering algorithm a bit, to make it less twitchy, so it becomes easier 
+	 to make small course-corrections, while driving at high speed."
+	https://github.com/NeuroDuck/e4357/commit/9d38d903fe8e3d9df45eea4f86f53576deec82e0
+
+main.cpp:180:
+-		float rotationSpeed = 1.0 * r / numRadiusBands; 
++		float rotationSpeed = 1.0 * r / numRadiusBands / 8; 	// (rotate _much_ slower).
+
+as it was just spinning 'way too fast to control which way it ended up pointing.
+
+I also made a temporary trade-off, of allowing faster driving, while blocking the
+ability to make the two levels of tighter-radius turns, as shown here:
+
+main.cpp:193-199:
+-	float fasterWheelRatio =        wheelRatios[theta]  * r / 500.0 / 4;
+-	float slowerWheelRatio = (100 - wheelRatios[theta]) * r / 500.0 / 4;
++	else if (theta != forwardTheta)					// == We're turning.
++	{
++		 theta = 3;			// Limit us to the most gradual turn of the 3 for now.
++	}
++	
++	float fasterWheelRatio =        wheelRatios[theta]  * r / 500.0;
++	float slowerWheelRatio = (100 - wheelRatios[theta]) * r / 500.0;
+
+I also went through everywhere main.cpp is sending commands to the underlying 3pi Robot,
+and added wait_ms() after each transmission, to allow enough time for it to complete at 
+the 115200 baud rate being used.  
+
+I added wait_ms() in the JoyStick code where it's sending characters to its Display at 
+the Display's max. 19200 baud rate.
+
+Now I'm starting to test my old Compass that I bought a few years back:
 
     LSM303DLM 3D Compass and Accelerometer Carrier with Voltage Regulators ($5.95)
     https://www.pololu.com/product/1273
 
-which is being phased out, so I also bought this new one:
+It is being phased out, so I also bought this new one:
 
     LSM303D 3D Compass and Accelerometer Carrier with Voltage Regulator ($9.95)
     https://www.pololu.com/product/2127
 
-Alas, as shown in:
+Alas, in my m3pi Robot, as shown in:
 
     "project/Compass/m3pi_I2C-Conflict_Schematic.gif"
 	
-both pairs of I2C bins being used for something else.  I.e., the mbed uses p9 & p10 
-to tell the “downstairs Robot” to spin the wheels, report the Battery Voltage, etc.,
-and it uses p27 & p28 to talk with the XBee radio.
+both pairs of the mbed's I2C bins being used for something else.  I.e., the mbed uses 
+p9 & p10 to tell the “downstairs Robot” to spin the wheels, report the Battery Voltage, 
+etc., and it uses p27 & p28 to talk with the XBee radio.
 
 Luckily, here:
 
@@ -790,13 +835,13 @@ that can do I2C on any two unused Pins, so I'll try that out.
 Update:
 ------
 
-Aside: While working in Panera, where all the Wi-Fi users may make for a noisy environment,
-	   I found that when doing my Wireless Programming of my Fio via XBee (w/transmission 
-	   power set = "LOWEST"), my max. Wireless Programming range was ~6-7 inches.  Really, 
-	   trying to program at 10 inches away, I was only able to succeed about 1 time in 10 
-	   tries.
+Aside: While working in Panera, where apparently all the Wi-Fi users may make for a noisy 
+	   RF environment, I found that when doing my Wireless Programming of my Fio via XBee 
+	   (w/transmission power set = "LOWEST"), my max. Wireless Programming range was ~6-7 
+	   inches.  Really, trying to program from 10 inches away, I was only able to succeed 
+	   about 1 time in 10 tries.
 
-Re: Sonar, Pololu has a very helpful beam width/depth chart here:
+Aside: Re: Sonar, Pololu has a very helpful beam width/depth chart here:
 
 	https://www.pololu.com/picture/view/0J1969
 
@@ -812,21 +857,23 @@ Re: Sonar, Pololu has a very helpful beam width/depth chart here:
 	
 	http://www.maxbotix.com/pictures/HRLV/HRLV-EZ%20Sensor%20Beam%20Patterns.gif
 	
-Re: Thin LiPo Batteries: Can 2 thin 1S 1Ah LiPo's be safely wired together in series,
-	wire terminals-to-wire terminals (nose-to-nose), to make a thin 2S battery pack?
+Aside: Re: Thin LiPo Batteries: Can 2 thin 1S 1Ah LiPo's be safely wired together in 
+		   series, wire terminals-to-wire terminals (nose-to-nose), to make a thin 2S 
+		   battery pack?
 
-Re: XBees: #0 goes in my USB Dongle	   (Dest=0xff)
-		   #1 in the JoyStick		   (Dest=#2)
-		   #2 goes in the mbed Robot   (Dest=#1)
-		   #3 goes in the Rover5 Robot (Dest=#0)
-	All programmed using my checked-in .pro files using digi.com's free X-CTU program.
+Aside: Re: XBees: #0 goes in my USB Dongle	(Dest=0xff)
+		   #1 in the JoyStick		   		(Dest=#2)
+		   #2 goes in the mbed Robot   		(Dest=#1)
+		   #3 goes in the Rover5 Robot 		(Dest=#0)
+	All were programmed using my checked-in .pro files with the above changes, using 
+	digi.com's free X-CTU program.
 	
 Update:
 ------
 
-Checking in project/Compass/calibrate_Compass.cpp, which is used to determine your 
-particular Compass's full-scale values, in your particular environment, to help it
-give more accurate readings.
+I'm checking in project/Compass/calibrate_Compass.cpp, which is used to determine your
+particular Compass's full-scale values for Acceleration and Magnetic Field, in your 
+particular installed environment, to help it give more accurate readings.
 
 Following up on what I wrote above, the SoftwareI2C library is working well.
 
@@ -835,30 +882,31 @@ as I had to slightly modify both to allow them to compile together.
 
 I added a bit of the DIPswitch support to the JoyStick.  Now is the point where it 
 would be handy to use one of the mbed RPC libraries, but they all seem to be out-of-date
-(read: don't compile against the current mbed library).
+(read: they don't compile against the current mbed library).
 
-So I'll add to the existing syntax (see the next update below) that I'm already parsing, 
-and use it to send my commands and queries to the Robot.
+So instead I'll add to the existing syntax (see the next update below) that I'm already 
+parsing, and use it to send my commands and queries to the Robot.
 
 The intention is that I will add 8 or more tiny switches (currently they're just wires to 
 Ground).
 
-When the user pushes "the Button", functions in the Robot will be run, selected by 
-whichever of the DIPswitches are in their "active" state.  I'll probably create some
-sort of primitive way for the user to specify an argument to them as well.
+When the user pushes "the JoyStick's Button", functions in the Robot will be run, selected 
+by whichever of the DIPswitches are in their "active" state.  I'll probably create some
+sort of primitive way for the user to specify an argument to the function invoction as well.
 
 I'll be adding a Compass to both the JoyStick and the Robot, so the Robot can steer 
 relative to the JoyStick's "forward" direction, rather than relative to the Robot's 
-"forward".
+"forward" direction.
 
 On the JoyStick's Arduino Fio, D2-D10 (= 9 bits) and A0-A4 (= 5 bits) are available 
-for use as DIPswitches.
+for use as DIPswitches (14 bits total).
 
 Currently I'm envisioning using 4 of these bits to specify a heading argument for my 
-function calls to the Robot (the JoyStick only produces 16 heading values, 2 of which 
-are "turn-on-a-dime", rather than forward/backward motion.
+function calls to the Robot (the JoyStick only produces 16 possible heading values, 
+2 of which are Rotate left and right, rather than being any amount of forward/backward 
+motion.
 
-Likewise 3 bits can be for invoking one of 8 Robot functions.
+Likewise 3 bits can be for invoking any one of 8 Robot functions.
 
 The remaining 7 bits for can be for invoking one or all of 7 different Robot functions.
 
