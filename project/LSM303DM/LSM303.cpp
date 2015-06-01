@@ -3,8 +3,8 @@
 #include "LSM303.h"
 #include "SoftwareI2C.h"
 
-#define SDAPIN p29
-#define SCLPIN p30
+#define SCLPIN p29
+#define SDAPIN p30
 
 SoftwareI2C i2c( SDAPIN, SCLPIN); 
 // I2C i2c( SDAPIN, SCLPIN);
@@ -29,27 +29,19 @@ void LSM303::setup()
     a_min.z = 0;
     
 #else
-		m_min.x = -690;
-		m_min.y = -702;
-		m_min.z = -568;
-		m_max.x = 480;
-		m_max.y = 483;
-		m_max.z = 589;
-	
-		a_min.x = -17376; 
-		a_min.y = -22624; 
-		a_min.z = -25024; 
-		a_max.x = 16432; 
-		a_max.y = 18464; 
-		a_max.z = 29840;
-/*    
+    m_min.x = -690;
+    m_min.y = -702;
+    m_min.z = -433;
+    m_max.x = 480;
+    m_max.y = 414;
+    m_max.z = 589; 
+    
     a_min.x = -542;
     a_min.y = -644;
     a_min.z = -632; 
     a_max.x = 496;
     a_max.y = 472;
     a_max.z = 566;
-*/
 #endif
     getScale(&scale);
     LSM303_write(0x27, CTRL_REG1_A);
@@ -67,14 +59,11 @@ int LSM303::testAcc()
 int LSM303::testMag()
 {
     if (i2c.write(LSM303_MAG, NULL, 0) ==0)
-		{
-        if (LSM303_read(LSM303_WHO_AM_I_M)==0x3C) 
-					{
+        if (LSM303_read(LSM303_WHO_AM_I_M)==0x3C) {
             return LSM303_WHO_AM_I_M;
         } else {
             return LSM303_MAG;
         }
-			}
 
     return 255;
 }

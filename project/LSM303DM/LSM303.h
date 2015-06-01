@@ -51,7 +51,7 @@
 #define PI                    3.14159265
 
 // Uncomment when calibrating.
-// #define CALIBRATING 
+#define CALIBRATING 
 
 /** LSM303DLM  mbed code based on AN3192 Application note and LSM303DLH example code by Jim Lindblom SparkFun Electronics 
   modified by Frankie.Chu to arduino in year 2012.
