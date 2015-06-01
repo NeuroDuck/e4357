@@ -20,46 +20,45 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-
+ 
+ // In here, add function to call SEND_CALIBRATED_SENSOR_VALUES, so we can create our 
+ // own function to calibrate the Compass using "Compass Auto-Calibration Jig.png".
+ // Before doing the above, do:
+ // Call sensor_auto_calibrate() while sitting on a black line on a white background.
+ // This will rotate the m3pi back and forth, so it can calibrate to accurately see 
+ // the line.
+ 
 #include "mbed.h"
 #include "m3pi.h"
 
-m3pi::m3pi(PinName nrst, PinName tx, PinName rx) :
-	Stream( "m3pi"), _nrst(nrst), _ser(tx, rx) 
-{
+m3pi::m3pi(PinName nrst, PinName tx, PinName rx) :  Stream("m3pi"), _nrst(nrst), _ser(tx, rx)  {
     _ser.baud(115200);
     reset();
 }
 
-m3pi::m3pi() :  
-	Stream("m3pi"), _nrst(p23), _ser(p9, p10) 
-{
-    _ser.baud( 115200);
+m3pi::m3pi() :  Stream("m3pi"), _nrst(p23), _ser(p9, p10)  {
+    _ser.baud(115200);
     reset();
 }
 
-void m3pi::reset ()
-{
+void m3pi::reset () {
     _nrst = 0;
     wait (0.01);
     _nrst = 1;
     wait (0.1);
 }
 
-void m3pi::left_motor (float speed) 
-{
-    motor( 0, speed);
+void m3pi::left_motor (float speed) {
+    motor(0,speed);
 }
 
-void m3pi::right_motor (float speed) 
-{
-    motor( 1, speed);
+void m3pi::right_motor (float speed) {
+    motor(1,speed);
 }
 
-void m3pi::forward (float speed) 
-{
-    motor( 0, speed);
-    motor( 1, speed);
+void m3pi::forward (float speed) {
+    motor(0,speed);
+    motor(1,speed);
 }
 
 void m3pi::backward (float speed) {
@@ -153,11 +152,13 @@ float m3pi::pot_voltage(void) {
     return(volt);
 }
 
+
 void m3pi::leds(int val) {
 
     BusOut _leds(p20,p19,p18,p17,p16,p15,p14,p13);
     _leds = val;
 }
+
 
 void m3pi::locate(int x, int y) {
     _ser.putc(DO_LCD_GOTO_XY);
@@ -199,14 +200,9 @@ int m3pi::getc (void) {
     return(_ser.getc());
 }
 
-
-
-
-
 #ifdef MBED_RPC
 const rpc_method *m3pi::get_rpc_methods() {
-    static const rpc_method rpc_methods[] = {
-				{ "forward", rpc_method_caller<m3pi, float, &m3pi::forward> },
+    static const rpc_method rpc_methods[] = {{ "forward", rpc_method_caller<m3pi, float, &m3pi::forward> },
         { "backward", rpc_method_caller<m3pi, float, &m3pi::backward> },
         { "left", rpc_method_caller<m3pi, float, &m3pi::left> },
         { "right", rpc_method_caller<m3pi, float, &m3pi::right> },

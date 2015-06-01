@@ -32,6 +32,7 @@
 
 #define SEND_SIGNATURE 0x81
 #define SEND_RAW_SENSOR_VALUES 0x86
+#define SEND_CALIBRATED_SENSOR_VALUES 0x87
 #define SEND_TRIMPOT 0xB0
 #define SEND_BATTERY_MILLIVOLTS 0xB1
 #define DO_PLAY 0xB3
@@ -48,6 +49,8 @@
 #define M1_BACKWARD 0xC2
 #define M2_FORWARD 0xC5
 #define M2_BACKWARD 0xC6
+
+
 
 /** m3pi control class
  *
@@ -96,6 +99,8 @@ public:
      *
      */
     m3pi(PinName nrst, PinName tx, PinName rx);
+
+
 
     /** Force a hardware reset of the 3pi
      */
@@ -213,8 +218,10 @@ public:
      * @param int The character to send to the 3pi
      */
     int print(char* text, int length);
-		
-    void motor( int motor, float speed);
+
+    // We need to call this with a variable for motor#, 
+    // so now it's public to make this possible.
+    void motor (int motor, float speed);
 
 #ifdef MBED_RPC
     virtual const struct rpc_method *get_rpc_methods();
