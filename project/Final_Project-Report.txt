@@ -924,6 +924,188 @@ To wit:
 	*xx nn cc  Call function xx on the Robot (specified by the JoyStick's DIPswitches), 
 			   with nn arguments to follow, and cc=checksum.
 	(argVal cc An argument for the previous Robot function call.
+	
+Update:
+------
+
+Some notes for the upcoming Compass Calibration Line-Following Algorithm...
+
+In libpololu-avr library that I downloaded from here:
+
+	https://www.pololu.com/docs/0J20/2.a
+	https://www.pololu.com/file/download/libpololu-avr-150324.zip?file_id=0J865
+	
+For completeness, more background is here:
+
+	https://www.pololu.com/docs/0J21/7
+
+I'm looking in:
+
+	libpololu-avr\examples\atmega328p\3pi-demo-or-serial-slave\serial-slave.c
+
+for the details on its PID algorithm.
+
+I.e., in my Robot code, theoretically I would like to call this to smooth out my driving:
+
+	m3pi::PID_start( int max_speed, int a, int b, int c, int d)
+	
+I found above, that these arguments are:
+
+	proportional_numerator
+	proportional_denominator
+	derivative_numerator 
+	derivative_denominator
+
+used as follows:
+
+	int power_difference = proportional * p_num / p_den + derivative * d_num / d_den;
+	
+The motors will stop if either denominator is 0.
+
+described as follows.
+
+	Sets up PID parameters and begins line following. The first data byte 
+	sets the maximum motor speed. The next four bytes, a, b, c, and d, 
+	represent the PID parameters.  
+	Specifically, the difference in the motor speeds will be set to 
+	(L-2000)×a/b + D×c/d, where L is the position of the line as described 
+	above, and D is the derivative of L. The integral term is not implemented 
+	in this program. See Section 7.c for more information on PID line following.
+
+So the purpose of this PID implementation is only to adjust the ratio of wheel speeds
+during line-following, and not during more generic driving :-(.
+
+If I want to do line-following, I should call sensor_auto_calibrate() while sitting on 
+a black line on a white background.  This will rotate the m3pi back and forth, so it can 
+calibrate to accurately see the line.
+
+I found that the 3pi Slave code apparently does support: 
+
+	0x87 read calibrated sensors (#defined as SEND_CALIBRATED_SENSOR_VALUES)
+		 Reads all five IR sensors and sends calibrated values as a sequence of 
+		 two-byte ints, in the range 0-1000.
+		 
+So after calling placing the Robot on a line and calling sensor_auto_calibrate(), 
+add a m3pi::read_calibrated_sensors() function, which I will use in my own function
+that drives around "Compass\Compass Auto-Calibration Jig.png" to auto-calibrate the 
+Compass.
+
+Update:
+------
+
+Now I'm building my Robot's "3rd Floor". 
+
+Aside: Headers: I have 3 different heights of right-angle headers, board-edge ones, 
+                "normal"-height ones, and "tall" ones, ugh.
+				
+On this new 3rd Floor, I mounted these Sensors:
+
+	Front-Looking Sonar
+	PADS (aka Ping) Distance Sensor + Cyperbolic(?) Reflector
+		http://www.perboliallc.com/projects.html
+	Using this library:
+		https://developer.mbed.org/users/rosienej/code/Ping/docs/1e4b66122368/classPing.html
+		https://developer.mbed.org/users/rosienej/code/Ping/
+	
+	Side-looking Sonar
+	Maxbotix LV-MaxSonar-EZ4 Sonar Range Finder MB1040
+		https://www.pololu.com/product/794
+		http://www.maxbotix.com/articles/016.htm 	(Quick-Start Guide, Analog Voltage method)
+		http://www.maxbotix.com/articles/033.htm	(Pulse-Width method)
+		https://www.pololu.com/product/794
+		http://www.maxbotix.com/tutorials.htm
+		http://www.maxbotix.com/articles/095.htm	(I2C library + example code)
+		http://www.maxbotix.com/documents/Arduino%20Codes/I2C_for_MaxSonar.ino
+		(The above is for Arduino, but can be a reference for using this via I2C from mbed.)
+	Using this library:
+		https://developer.mbed.org/users/mkanli/code/MaxSonar/
+
+	Tilt-Compensated Compass
+	LSM303DLM 3D Compass and Accelerometer Carrier with Voltage Regulators
+		https://www.pololu.com/product/1273
+	Using this library:
+		https://developer.mbed.org/users/fin4478/code/LSM303DM/
+		
+	I also have this newer Compass that I'll use on my JoyStick:
+	LSM303D 3D Compass and Accelerometer Carrier with Voltage Regulator
+		https://www.pololu.com/product/2127
+
+The mbed and Power pins I need to route up to the 3rd Floor to operate these 3 Sensors are:
+
+	Front-Looking Sonar (PING):
+		5V, Ground
+		Signal		(p8)
+		SCL, SDA	(SCL = p29, SDA = p30, migrate to use its I2C interface a bit later)
+		
+	Side-looking Sonar (LV-MaxSonar-EZ4)
+		5V, Ground
+		Trigger		(p15)
+		Signal		(p16)
+		
+	Compass (LSM303DLM)
+		3.3V, Ground
+		SCL, SDA	(SCL = p29, SDA = p30, as defined in my LSM303.cpp)
+		Using SoftwareI2C library: 
+			https://developer.mbed.org/users/p3p/code/SoftwareI2C/
+		
+These signals run up my 2nd-3rd Floor Headers as follows:
+(viewed looking at the edge of the 2nd Floor board, when it is mbed-side up):
+
+	Right-most: 
+				MaxSonar AnalogIn	(p16)
+				MaxSonar TriggerOut	(p15)
+				pin present, but not used
+				pin present, but not used
+				pin present, but not used
+				SCL					(p29)
+				Ground
+				5V					(From 1st Floor)
+				3.3V				(p40, mbed's Vout)
+				SDA					(p30)
+				Ping Signal Output	(p8)
+				pin present, but not used
+				pin present, but not used
+				mbed Reset			(nR == p4)
+				pin present, but not used
+	Left-most	pin present, but not used
+		
+Update:
+------
+
+These photos show the forward- and side-facing Sonar sensors and the Compass 
+on the newly-built 3rd Floor:
+
+	Robot-Front View.jpg
+	Robot-Top View.jpg
+	Robot-Right Side View.jpg
+	
+"Robot-2nd to 3rd Floor Connector details.jpg" shows the connectors added to 
+carry signals from the 2nd Floor up to the newly-built 3rd Floor.
+
+"Robot-2nd Floor added Wiring details.jpg" shows the wiring added to the bottom
+of the 2nd Floor, to route the necessary signals to the connectors in the 
+previous photo.
+
+I'm also checking in updates to the stock mbed MaxSonar and PING libraries, 
+to make them work more accurately.
+
+Some delays I encountered, were:
+
+	I re-built part of the 2nd-to-3rd Floor connectors.
+	My original PING sensor (from perboliallc.com) turned out to be too 
+		unstable to be usable, so I had to remove the PING from my old 
+		Robot to use here.
+
+All three Sensors are working now working well, so it's finally time to 
+try to write code against them.
+
+Once I write a bit more steering code, I'll add the mbed WebServer library, 
+to serve up a live map of the Robot's explorations via the RN-XV WiFly (Wi-Fi)
+drop-in replacement for my existing XBee radio.
+
+This will allow anyone on the local network to view the Robot's live exploration
+map, steer it, and to query various aspects of its state, i.e., battery life, 
+etc.
 
 Results/Solutions:
 -----------------
