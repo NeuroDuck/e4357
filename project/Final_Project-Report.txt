@@ -1052,22 +1052,23 @@ These signals run up my 2nd-3rd Floor Headers as follows:
 (viewed looking at the edge of the 2nd Floor board, when it is mbed-side up):
 
 	Right-most: 
-				MaxSonar AnalogIn	(p16)
-				MaxSonar TriggerOut	(p15)
-				pin present, but not used
-				pin present, but not used
-				pin present, but not used
-				SCL					(p29)
-				Ground
-				5V					(From 1st Floor)
-				3.3V				(p40, mbed's Vout)
-				SDA					(p30)
-				Ping Signal Output	(p8)
-				pin present, but not used
-				pin present, but not used
-				mbed Reset			(nR == p4)
-				pin present, but not used
-	Left-most	pin present, but not used
+	MaxSonar AnalogIn		(p16) (Conflicts with Robot's LED's,)
+	MaxSonar TriggerOut		(p15) (but I need an AnalogIn pin.  )
+	pin present, but not used
+	pin present, but not used
+	pin present, but not used
+	SCL				(p29)
+	Ground				(From 1st Floor)
+	5V				(From 1st Floor)
+	3.3V				(p40, mbed's Vout)
+	SDA				(p30)
+	Ping Signal Output		(p8)
+	pin present, but not used
+	pin present, but not used
+	mbed Reset			(nR == p4)
+	pin present, but not used
+	pin present, but not used
+	Left-most:
 		
 Update:
 ------
@@ -1106,6 +1107,112 @@ drop-in replacement for my existing XBee radio.
 This will allow anyone on the local network to view the Robot's live exploration
 map, steer it, and to query various aspects of its state, i.e., battery life, 
 etc.
+
+Update:
+------
+
+A week or so ago I re-configured all 4 of my XBee's (the 4th one is in another
+Robot that's not part of this project).
+
+Yesterday I found that my Dongle XBee (ID# 0) can no longer talk with, and more
+importantly, do Wireless Programming, to the JoyStick's XBee.
+
+So I'm reading up on XBee's here:
+
+	https://www.sparkfun.com/datasheets/Wireless/Zigbee/XBee-Manual.pdf
+	
+to determine if I can set the JoyStick's Destination Address to be a mask,
+rather than a particular address, so it can converse with both my XBee Dongle
+and with the Robot.
+
+Update:
+------
+
+Oops: Looking though the m3pi User's Manual, I see that the mbed's Pin 8 is 
+      wired to the 1st Floor MCU's Reset input :-(.
+      As you can see above, I used that mbed Pin for "Ping Signal Output" :-(.
+      
+Thus it seems prudent to make this list of the mbed's "Reserved Pins", which 
+are already dedicated to some use or other by the m3pi, and re-assign any 
+of these that I'm currently using to some other uncommitted pins: 
+
+	p5	AVR_MOSI (AVR ISP Programmer chip)
+	p6	AVR_MISO (AVR ISP Programmer chip)
+	p7	AVR_SCK	 (AVR ISP Programmer chip)
+	p8	3PI_RST	 (Reset 1st Floor Robot)
+	p9	3PI_RX	 (Receive 1st Floor Robot's Responses)
+	p10	3PI_TX	 (Send commands to 1st Floor Robot)
+	p13-20	Persistence Vision LEDs
+	p23	AVR_nRST (AVR ISP Programmer chip)
+	p26	COM_nRST (XBee pin 5)
+	p27	COM_TX   (XBee pin 2)
+	p28	COM_RX   (XBee pin 3)
+	
+Relatedly, here are where the XBee pins are accessible on the m3pi board:
+
+	 2	COM_TX		(P1_6 = Wixel Right Header Pin 7)
+	 3	COM_RX		(P1_7 = Wixel Right Header Pin 8)
+	 4	DO8		(P0_3 = Wixel Left Header Pin 7)
+	 6	PWM0/RSSI	(P0_4 = Wixel Left Header Pin 8)
+	 7	PWM1		(P0_5 = Wixel Left Header Pin 9)
+	 8	Reserved 	(P2_1 = Wixel Left Header Pin 10)
+	 9	DTR/SLPRQ/DI8	(P2_2 = Wixel Left Header Pin 11)
+				(Note: "U3" aka Bluetooth Header)
+	11	AD4/DIO4	(U3_11 = Wixel Antenna Area Column 6)
+	12	CTS/DIO7	(U3_12 = Wixel Antenna Area Column 5)
+	13	ON/-SLEEP	(U3_13 = Wixel Antenna Area Column 4)
+				(& P1_9 = Wixel Right Header Pin 9)
+				(Note: Wixel Right Header starts 1 below Ground hole, 1-9 only)
+	14	VREF		(U3_14 = Wixel Antenna Area Column 3)
+	15	ASSOC/AD5/DIO5	(P1_5 = Wixel Right Header Pin 6)
+	16	-RTS/AD6/DIO6	(P1_4 = Wixel Right Header Pin 5)
+	17	AD3/DIO3	(P1_3 = Wixel Right Header Pin 4)
+	18	AD2/DIO2	(P1_2 = Wixel Right Header Pin 3)
+	19	AD1/DIO1	(P1_1 = Wixel Right Header Pin 2)
+	20	AD0/DIO0	(P1_0 = Wixel Right Header Pin 1)
+
+Referring to the list above, it seems that my only mbed Pin that I need to migrate 
+elsewhere is p8, which I'm using to control the PING Sensor.
+
+I'll add headers on the bottom of the mbed board to allow connections to p11-p14, 
+and migrate the PING's signal to one of those.
+
+Relately, the MaxSonar has 4 different interfaces:
+
+	Analog Voltage
+	Pulse Width
+	RS232
+	I2C		(alas, not available in my MaxSonar model)
+
+to return a measured distance, as described here:
+
+	http://www.maxbotix.com/tutorials.htm
+	
+Currently I'm using the Analog Voltage interface, as that's all that happened to 
+be implemented in the available mbed library.
+	
+Referring to pg. 3 of: 
+
+	"e4357\project\Sonar\LV-MaxSonar-EZ MB1040 datasheet.pdf"
+
+it looks like its Pulse Width interface works similar to the PING's, except with
+different timing values.  I.e., send a triggerPulse for >20uS, then wait for and 
+read the duration of the response pulse, using the conversion factor of 
+147uSec./inch, as described here:
+
+	http://www.maxbotix.com/articles/033.htm
+	
+The MaxSonar's Analog Voltage distance measurement needed correction, so perhaps 
+the Pulse Width-derived or I2C reported measured distances will be more accurate.
+I'll write here later when I test these.  
+
+The more basic MaxSonar I2C models are listed here:
+
+	http://www.maxbotix.com/Ultrasonic_Sensors.htm#I2CXL
+
+The good news is that their I2C address is programmable to any valid value (1-239?),
+so it won't conflict with other I2C devices on the bus.
+
 
 Results/Solutions:
 -----------------
