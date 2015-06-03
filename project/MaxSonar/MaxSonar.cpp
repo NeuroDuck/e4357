@@ -98,6 +98,11 @@ void MaxSonar::setVoltage( float voltage)
     this->analog_resolution = this->voltage / this->analog_scale;
 }
 
+// From the Datasheet:
+//
+// Pin 3-AN: Outputs analog voltage with a scaling factor of (Vcc / 512) per inch. 
+// A power supply of 5V yields ~9.8mV/in. and 3.3V yields ~6.4mV/in. 
+//
 float MaxSonar::readDistance( void) 
 {
     if (rx_req == NULL)
@@ -124,7 +129,9 @@ float MaxSonar::readDistance( void)
     return MaxSonar::read();
 }
 
-// Min. measurement is 7", which matches the PING.
+// MaxSonar's min. measurement is 7", which matches the PING's
+// measurement at that distance.
+//
 // When PING = 144", MaxSonar = 205.41"
 // (I'm fudging this to make the calc. below come 
 //  out they way I want.)
@@ -138,11 +145,9 @@ const float scaleFactor =
    (maxMeasuredPING - minMeasuredPING) / 
    (maxCorrespondingMaxSonar - minCorrespondingMaxSonar);
 
-inline float inchesCorrection( float measuredInches)
+inline float correctedInches( float measuredInches)
 {
-    
-    return equalPoint +
-        (measuredInches - equalPoint) * scaleFactor;    
+    return equalPoint + (measuredInches - equalPoint) * scaleFactor;    
 }
 
 float MaxSonar::read( void)
@@ -173,7 +178,7 @@ float MaxSonar::read( void)
         break;
     
     case MS_INCH:       // Apparently, the default measured units are inches.
-        range = inchesCorrection( range);
+        range = correctedInches( range);
         break;
         
     default:
