@@ -1054,7 +1054,7 @@ These signals run up my 2nd-3rd Floor Headers as follows:
 	Right-most: 
 	MaxSonar AnalogIn		(p16) (Conflicts with Robot's LED's,)
 	MaxSonar TriggerOut		(p15) (but I need an AnalogIn pin.  )
-	pin present, but not used
+	Ping Signal Output		(p14)
 	pin present, but not used
 	pin present, but not used
 	SCL				(p29)
@@ -1062,7 +1062,7 @@ These signals run up my 2nd-3rd Floor Headers as follows:
 	5V				(From 1st Floor)
 	3.3V				(p40, mbed's Vout)
 	SDA				(p30)
-	Ping Signal Output		(p8)
+	pin present, but not used
 	pin present, but not used
 	pin present, but not used
 	mbed Reset			(nR == p4)
@@ -1213,6 +1213,29 @@ The more basic MaxSonar I2C models are listed here:
 The good news is that their I2C address is programmable to any valid value (1-239?),
 so it won't conflict with other I2C devices on the bus.
 
+Update:
+------
+
+I checked in this spreadsheet:
+
+	"e4357\project\Sonar\PING vs. MaxSonar measurement differences.xlsx"
+
+that shows the differences in the reported distances between the PING Sonar Sensor 
+and the MaxSonar one.  The spreadsheet also contains the correctedInches() function 
+that I added to the MaxSonar library, that now brings the MaxSonar's reported 
+distance very closely into agreement with the PING's.
+
+The photo"
+
+	"e4357\project\New Header Pins added for mbed p11-p14.jpg"
+	
+shows the new Header Pins I added on the bottom of the mbed board to allow access to
+p11-p14.
+
+I added these Pins because it turns out that my use of p8 to signal the PING Sensor 
+was causing problems with the 1st Floor Robot.  p8 is wired to the 1st Floor Robot's
+Reset line, so I migrated the PING's signal from the mbed's p8 to p14, now carried
+by the blue wire on the rar-right side of the photo above.
 
 Results/Solutions:
 -----------------
