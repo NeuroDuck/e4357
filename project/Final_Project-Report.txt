@@ -1237,5 +1237,74 @@ was causing problems with the 1st Floor Robot.  p8 is wired to the 1st Floor Rob
 Reset line, so I migrated the PING's signal from the mbed's p8 to p14, now carried
 by the blue wire on the rar-right side of the photo above.
 
+Update:
+------
+
+Re: XBee Configurations:
+
+To keep things simple for now, to resolve the issue of the JOYSTICK's XBee not 
+wanting to talk to the LAPTOP's XBee (= the one that I do Wireless Programming 
+with), I set the JOYSTICK's XBee's Destination Address (low bits) = 0xffff = 
+Broadcast.
+
+Alternatively, I also found that I can name each XBee, thus they are now named:
+
+	LAPTOP		(Node #0)
+	JOYSTICK	(Node #1)
+	MBED1		(Node #2)
+	ROVER5		(Node #3) (= My previous Robot project, still ongoing)
+	
+Interestingly, I can switch any XBee from Transparent (= my normal use) mode to
+Command Mode by typing to it "+++", without the Enter character.
+
+Then I can type in any of:
+
+	ATDNLAPTOP
+	ATDNJOYSTICK
+	ATDNMBED1
+	
+to easily set it to talk with the desired target XBee.  
+Note: The target XBee has to be currently on-line to allow this to work.
+
+By default, the XBee will automatically switch from Command Mode back to Transparent
+Mode after 6.4 sec. idle time.
+
+It seems that having the JoyStick's XBee's Destination Address (= DA) set to 0xffff, 
+does not allow Wireless Programming to work, so I've temporarily switched it to 0x0, 
+so it can talk with the Laptop's XBee.  I'll switch the DA back to 0x2 when I'm done
+programming it.
+
+I'm in progress on wiring up 12 DIP switches for the JoyStick, so I'll assign 2 of
+them to be read in the JoyStick's setup() to specify the target XBee DA.
+
+Update:
+------
+
+So far, I've wired up the Ground-side of all 12 DIP Switches, and one of them I've 
+connected to the JoyStick's Arduino Fio A0 pin.
+
+I've migrated the display update of the Switches' state from polling in the JoyStick's
+loop() function, to being called by a PinChange_ISR() instead.
+
+The Fio only has one UART, which is talking with the XBee, so I'm using a SoftwareSerial
+library to drive the JoyStick's LCD Display.
+
+Unfortunately, the SoftwareSerial library claims all 3 of the PinChange_ISR()'s, so
+I modified its constructor to take a callersPinChangeISR function-pointer, which it
+calls if its own PinChange_ISR() determines that the triggering PinChange is not 
+one that it is waiting to process.
+
+So now my JoyStick's PinChange_ISR() is being called by the SoftwareSerial library, 
+and I don't need to poll any more to check if any of my DIP Switch settings have 
+changed.
+
+While looking into what the SoftwareSerial library is doing, I learned a lot about 
+many useful GPIO Pin Control Register manipulation macros, which I've documented 
+my findings on in the JoyStick source file, "project/Joystick/Joystick_v02.ino".
+
+Next I'll wire up the other side of the rest of the DIP Switches with some Ribbon
+Cable, and hopefully they'll all be working straight away, using this new PinChange
+ISR().
+
 Results/Solutions:
 -----------------

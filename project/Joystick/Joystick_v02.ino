@@ -4,11 +4,19 @@
 #define BATTERY_BLUE_WIRE  A5    // Analog.
 #define HORIZ_ORANGE_WIRE  A7    // Analog.
 #define VERT_GREEN_WIRE    A6    // Analog.
-#define FIRST_DIP_SWITCH    2    // Digital.
-#define LAST_DIP_SWITCH    10    // Digital.
+
 #define SET_DIR_BUTTON     11    // Digital.
+
 #define DISPLAY_GREEN_WIRE 12    // Digital.
 #define LED                13
+
+const int firstSwitchPinNum = 2;
+const int lastSwitchPinNum  = SET_DIR_BUTTON;
+const int numSwitchPins     = lastSwitchPinNum - firstSwitchPinNum + 1;
+
+const int adcSwitches[] = {A0};  // = 14;
+const int numADCswitches = sizeof( adcSwitches) / sizeof( int);
+const int lastADCswitchPinNum = adcSwitches[numADCswitches - 1];
 
 const int xMin    =    0;    // or 1, or 2.
 const int xMax    = 1021;    // or 1022.
@@ -219,16 +227,80 @@ boolean get_R_Theta()
   return changed;
 }
 
+// GPIO Pin Config & Access Registers:
+// 
+// PCICR:
+// [PCIE0] enables PCINT[7:0]    (PORTB, PINB, DDRB, PCMSK0).
+// [PCIE1] enables PCINT[14:8]   (PORTC, PINC, DDRC, PCMSK1).
+// [PCIE2] enables PCINT[23:16]  (PORTD, PIND, DDRD, PCMSK2).
+
+// The Registers that control the Ports are explained here:
+//   http://www.arduino.cc/en/Reference/PortManipulation
+//
+// In short, it says:
+//  DDR{B,C,D}  = Pin Direction, also set by PinMode():
+//    1 => Output.
+//  PORT{B,C,D} = 8 Output Pins together (R/W):
+//    when the Pin is an Input:
+//      1 => Activate Pull-Up Resistor, also set by PinMode( ...., INPUT_PULLUP);
+//    when the Pin is an Output:
+//      1 => output == HIGH.
+//  PIN{B,C,D}  = 8 Input  Pins together (R/O), however:
+//    writing a 1 toggles the corresponding PORT value.
+
+// Let's use these handy #define's in pins_arduino.h and Arduino.h:
+//
+//  Example:
+//    bool pinState = bitRead( 
+//      *portInputRegister( digitalPinToPort( pin)),
+//      digitalPinToPCMSKbit( pin));
+//  or:
+//    bool pinState = 
+//      *portInputRegister( digitalPinToPort( pin)) & 
+//      digitalPinToBitMask( pin);
+//
+//  digitalPinToBitMask( pin)         // One of: _BV( 0) thru _BV( 7).
+//  digitalPinToPort( pin)            // One of: PB 2, PC 3, PD 4.
+//  portOutputRegister( portNum)      // One of: &PORTB, &PORTC, &PORTD.
+//  portInputRegister( portNum)       // One of: &PINB,  &PINC,  &PIND.
+//  portModeRegister( portNum)        // One of: &DDRB,  &DDRC,  &DDRD.
+//
+//  digitalPinToPCICR( pin)           // Returns &PCICR for 0-21, else 0.
+//  digitalPinToPCICRbit( pin)        // One of: 0, 1, 2.
+//  digitalPinToPCMSK( pin)           // One of: &PCMSK0, &PCMSK1, &PCMSK2.
+//  digitalPinToPCMSKbit( pin)        // One of: 0-7.
+//
+//  clockCyclesPerMicrosecond()
+//  clockCyclesToMicroseconds()
+//  microsecondsToClockCycles()
+//
+//  bitRead(  value, bit);
+//  bitSet(   value, bit);
+//  bitClear( value, bit);
+//  bitWrite( value, bit, bitValue);
+//  bit( bitNum);
+
+// Set up Pin Change Interrupts to monitor our DIP Switches.
+//
 bool setDipSwitchPinMode( int pinNum, bool bValue, char *cValuePtr)
 {
-  pinMode( pinNum, INPUT_PULLUP);
+  // Configure DDRxn and PORTxn above for this Pin.
+  //
+  pinMode( pinNum, INPUT_PULLUP);    
   
-  return true;                    // All is well.
+  // Ensure that this Pin's PORT's Change Interrupts are enabled.
+  //
+  *digitalPinToPCICR( pinNum) |= _BV( digitalPinToPCICRbit( pinNum));
+
+  // Ensure that this Pin's Pin Change Mask Register bit is set.
+  *digitalPinToPCMSK( pinNum) |= _BV( digitalPinToPCMSKbit( pinNum));
+
+  return true;
 }
-                       // 11
-                       // 1098765432
-char dipSwitchStates[] = "0000000000";
-                       // 0123456789
+                       // 11        A
+                       // 10987654320
+char dipSwitchStates[] = "00000000000";
+                       // 01234567890
 
 // Loop through the DIP Switches, calling processValueFunction() for each
 // of them.
@@ -238,9 +310,15 @@ char dipSwitchStates[] = "0000000000";
 //  cValuePtr == a pointer to the char representing the value, that is sent
 //            to the Robot.  This is to allow modification of the stored char.
 //
+// Switches connected to ADC pins appear in the list of Switch states after 
+// the ones connected to Digital pins.
+//
 inline int getDipSwitchCharNdx( int pinNum)
 {
-  return SET_DIR_BUTTON - pinNum;
+  if (pinNum <= lastSwitchPinNum)
+    return lastSwitchPinNum - pinNum;
+  else
+    return numSwitchPins + pinNum - lastADCswitchPinNum;
 }
 
 inline bool getDipSwitchStateFromPinNum( int pinNum)
@@ -251,23 +329,6 @@ inline bool getDipSwitchStateFromPinNum( int pinNum)
 inline bool getDipSwitchStateFromCharNdx( int charNdx)
 {
   return dipSwitchStates[charNdx] - '0';
-}
-
-bool callThisFunctionForEveryDipSwitch(
-  bool (*processValueFunction)(int pinNum, bool bValue, char *cValuePtr))
-{
-  bool result = false;
-  
-  for (int pinNum = FIRST_DIP_SWITCH ; pinNum <= SET_DIR_BUTTON ; pinNum++)
-  {
-    int charNdx = getDipSwitchCharNdx( pinNum);
-    bool bValue = getDipSwitchStateFromCharNdx( charNdx);
-    char* cValuePtr = &(dipSwitchStates[charNdx]);
-
-    result |= (*processValueFunction)( pinNum, bValue, cValuePtr);
-  }
-  
-  return result;
 }
 
 bool callThisFunctionForThisDipSwitch(
@@ -283,9 +344,31 @@ bool callThisFunctionForThisDipSwitch(
     return result;
 }
 
+bool callThisFunctionForEveryDipSwitch(
+  bool (*processValueFunction)(int pinNum, bool bValue, char *cValuePtr))
+{
+  bool result = false;
+  
+  // First process the DIP Switches connected to Digital pins.
+  for (int pinNum = firstSwitchPinNum ; pinNum <= lastSwitchPinNum ; pinNum++)
+  {
+    result |= callThisFunctionForThisDipSwitch( processValueFunction, pinNum);
+  }
+  
+  // Then do the ones connected to ADC pins.
+  for (int adcPinNdx = 0 ; adcPinNdx < numADCswitches ; adcPinNdx++)
+  {
+    result |= 
+      callThisFunctionForThisDipSwitch( 
+        processValueFunction, adcSwitches[adcPinNdx]);
+  }
+
+  return result;
+}
+
 #include <SoftwareSerial.h>
-SoftwareSerial displaySerial =
-  SoftwareSerial( 255, DISPLAY_GREEN_WIRE);
+SoftwareSerial displaySerial( 
+  255, DISPLAY_GREEN_WIRE, false, &joystickPCINTisr);
 
 // Our PushButton's Input Pin has a Pullup Resistor, so the LED should be 
 // HIGH by default.
@@ -294,7 +377,7 @@ bool ledState             = HIGH;
 
 void setup()
 {
-  // Fio needs to start this way to support Wireless Programmng.
+  // Fio needs to start this way to support Wireless Programming.
   //
   Serial.begin( 57600);
   displaySerial.begin( 19200);  // Let's get the chars displayed quickly.
@@ -326,6 +409,107 @@ void setup()
   displayOn2ndLine( "<JoyStick ready>");
 }
 
+/* From the AT328MEGA Datsheet and here:
+ * http://www.arduino.cc/en/Hacking/PinMapping168
+ *8 PB0 (PCINT0/CLKO/ICP1)
+ *9 PB1 (PCINT1/OC1A)
+ *10 PB2 (PCINT2/SS/OC1B)
+ *11 PB3 (PCINT3/OC2A/MOSI)
+ x12 PB4 (PCINT4/MISO)            // Display.
+ x13 PB5 (SCK/PCINT5)             // LED.
+ xXTAL1 PB6 (PCINT6/XTAL1/TOSC1)
+ xXTAL2 PB7 (PCINT7/XTAL2/TOSC2)
+ *A0 PC0 (ADC0/PCINT8)
+ xA1 PC1 (ADC1/PCINT9)
+ xA2 PC2 (ADC2/PCINT10)
+ xA3 PC3 (ADC3/PCINT11)
+ xA4 PC4 (ADC4/SDA/PCINT12)
+ xA5 PC5 (ADC5/SCL/PCINT13)
+ xRESET PC6 (RESET/PCINT14)
+ xRX PD0 (RXD/PCINT16)
+ xTX PD1 (TXD/PCINT17)
+ *2 PD2 (INT0/PCINT18)
+ *3 PD3 (PCINT19/OC2B/INT1)
+ *4 PD4 (PCINT20/XCK/T0)
+ *5 PD5 (PCINT21/OC0B/T1)
+ *6 PD6 (PCINT22/OC0A/AIN0)
+ *7 PD7 (PCINT23/AIN1)
+ */
+// So we want:
+//  PCINT0-3    (PB0-3)  (8-11)    PCMSK0 = PCINT0 | PCINT1 | PCINT2 | PCINT3;
+//  PCINT8      (PC0)    (A0)      PCMSK1 = PCINT8;
+//  PCINT18-23  (PD2-7)  (2-7)     PCMSK2 = PCINT18-23;
+//
+// ADC0 = PortC[0] (aka PC0) -> PCINT8.
+
+// My defining a:
+//   ISR( PCINT<n>_vect)
+// conflicts with the SoftwareSerial library's wishes, as apparently it wants
+// to direct all of ISR( PCINT<1-3>_vect to its own interrupt handler.  Rather
+// inconsiderate of it, if you ask me, as shown by this compile error:
+//
+//   C:\Program Files (x86)\Arduino\hardware\arduino\avr\libraries\
+//   SoftwareSerial/SoftwareSerial.cpp:227: multiple definition of 
+//     `__vector_4'
+//
+// where at that point in SoftwareSerial.cpp, it says:
+//
+//   #if defined(PCINT1_vect)
+//     ISR(PCINT1_vect, ISR_ALIASOF(PCINT0_vect));
+//   #endif
+//
+// I found the macro definitions used in SoftwareSerial.cpp here:
+//   C:\Arduino\arduino-1.0-windows\arduino-1.0\hardware\arduino\variants\standard\pins_arduino.h
+//   C:\Arduino\arduino-1.0-windows\arduino-1.0\hardware\arduino\cores\arduino\Arduino.h
+//
+// In SoftwareSerial::begin(), it says:
+//   "Enable the PCINT for the entire port here, but never disable it
+//    (others might also need it, so we disable the interrupt by using
+//    the per-pin PCMSK register).
+//   *digitalPinToPCICR(_receivePin) |= _BV(digitalPinToPCICRbit(_receivePin));
+//
+// I want it to call my ISR( PCINT<1-3>) too, along with its, so I'm adding 
+// a function-pointer arg to SoftwareSerial(), which it will call if the
+// PinChange that triggered the ISR() call is not one that it's waiting for.
+//
+// ISR( PCINT1_vect)      // Have to share this with SoftwareSerial Library.
+//
+//    bool pinState = bitRead( 
+//      *portInputRegister( digitalPinToPort( pin)),
+//      digitalPinToPCMSKbit( pin));
+//  or:
+//    bool pinState = 
+//      *portInputRegister( digitalPinToPort( pin)) & 
+//      digitalPinToBitMask( pin);
+
+/*
+  volatile bool state1 = false;
+  volatile bool state2 = false;
+  volatile bool newDataForPrinting = false;
+  int interruptingPin = A0;
+*/
+inline void joystickPCINTisr()
+{  
+/*
+  state1 = !bitRead( 
+    *portInputRegister( digitalPinToPort( interruptingPin)),
+    digitalPinToPCMSKbit( interruptingPin));
+
+//  Serial.print( "state1 = ");
+//  Serial.println( state1);
+    
+  state2 = 
+    !(*portInputRegister( digitalPinToPort( interruptingPin)) & 
+    digitalPinToBitMask( interruptingPin));
+
+//  Serial.print( "state2 = ");
+//  Serial.println( state2);
+*/
+//  newDataForPrinting = true;
+  
+  updateDipSwitchStates();
+}
+
 char receivedMsg[100];
 int  receivedMsgNdx = 0;
 
@@ -334,15 +518,29 @@ int batteryMeasureCtr = 0;
 bool blockedAwaitingReply = false;
 
 void loop()      
-{
+{  
   const int loopsToSkipChecking = 150;
   
   // Let's not spend _all_ of our time doing this.  This is a good value 
   // to catch very brief button-presses.
   //
-  if (dssCtr++ % loopsToSkipChecking == 0)     
-    updateDipSwitchStates();    
+//  if (dssCtr++ % loopsToSkipChecking == 0)     
+//    updateDipSwitchStates();           // Now called in joystickPCINTisr();
 
+/*
+  if (newDataForPrinting)
+  {
+    Serial.print( "state1 = ");
+    Serial.print( state1);
+    Serial.print( "  state2 = ");
+    Serial.print( state2);
+    Serial.println( "");
+    
+    newDataForPrinting = false;    
+  }
+  
+  return;
+*/
   if (batteryMeasureCtr++ % 10000 == 0)              // Ditto.
     displayVoltageMeasurement();
 
@@ -390,7 +588,10 @@ void loop()
 
 bool readDipSwitchStateAndStoreIt( int pinNum, bool bValue, char *cValuePtr)
 {
-  char newCValue = '0' + digitalRead( pinNum);
+  // These pins all have Pull-Up Resistors, so let's display a "1" when the
+  // pin's DIP Switch is closed.
+  // 
+  char newCValue = '0' + 1 - digitalRead( pinNum);
   
   bool changed = (*cValuePtr != newCValue);
   
