@@ -366,14 +366,16 @@ bool callThisFunctionForEveryDipSwitch(
   return result;
 }
 
+#include <TimerOne.h>
 #include <SoftwareSerial.h>
 SoftwareSerial displaySerial( 
-  255, DISPLAY_GREEN_WIRE, false, &joystickPCINTisr);
+  255, DISPLAY_GREEN_WIRE, false, &dipSwitchesPCINTisr);
 
 // Our PushButton's Input Pin has a Pullup Resistor, so the LED should be 
 // HIGH by default.
 //
-bool ledState             = HIGH;  
+bool ledState             = HIGH;
+const unsigned long joyStickSamplesPerSec = 20UL;
 
 void setup()
 {
@@ -398,6 +400,7 @@ void setup()
   displaySerial.write( 12);                 // Clear.
   delay( 5);                                // Required delay.
   displaySerial.write( 22);                 // Display on, no cursor.
+  delay( 5);                                // Just in case this is needed.
   
   digitalWrite( LED, ledState); // Set up the Output LED for initial state.
 
@@ -407,6 +410,131 @@ void setup()
   setRadiusRangeValues();
 
   displayOn2ndLine( "<JoyStick ready>");
+  
+  // Call this at 20Hz, to do the JoyStick ADC readings.
+  Timer1.initialize( 1000UL * 1000UL / joyStickSamplesPerSec);  
+  Timer1.attachInterrupt( 
+    updateVoltageMeasurementDisplayAndSampleJoyStickViaTimer1);
+  
+  // Set up ADC for delivering sample results via ISR( ADC_vect). 
+  // For now, just use the Arduino-provided analogRead().
+  //
+  // A single conversion is started by writing a logical one 
+  // to the ADC Start Conversion bit, ADSC.
+  //
+  // If the full 10-bit precision is required, ADCL must be read first, then ADCH, 
+  // to ensure that the content of the Data Registers belongs to the same
+  // conversion. 
+  // Once ADCL is read, ADC access to Data Registers is blocked. When ADCH is read,
+  // ADC access to the ADCH and ADCL Registers is re-enabled.
+  //
+  // Auto Triggering is enabled by setting the ADC Auto Trigger Enable bit, ADATE 
+  // in ADCSRA.  This provides a method of starting conversions at fixed intervals.
+  //
+  // If Auto Triggering is enabled, single conversions can be started by writing 
+  // ADSC in ADCSRA to one. ADSC can also be used to determine if a conversion is 
+  // in progress. The ADSC bit will be read as one during a conversion, 
+  // independently of how the conversion was started.
+  // 
+  // ADMUX – ADC Multiplexer Selection Register 24.9.1, pg. 248:
+  // : REFS[1:0] = 0 => AREF, Internal Vref turned off
+  // : ADLAR: ADC Left Adjust Result: 0 => ADC9-8 in ADCH, ADC7-0 in ADCL.
+  // : MUX[3:0]: Analog Channel Selection Bits = 0-7 => Sample A0-A7. A8 = Temp.
+  //
+  // ADCSRA – ADC Control and Status Register A 24.9.2, pg 249:
+  // : ADEN  => ADC Enable (Set separately from ADSC, to avoid 25-clock conv.
+  //            due to ADC Initialization.
+  // : ADSC  => ADC Start one Conversion (when in Single Conversion Mode)
+  //         => ADC Start Free-Running Conv. (when in Free-Running Mode)
+  //         => Reads as 1 while Conversion is in progress, 0 after.
+  // : ADATE => Auto Triggering Enable.  Trigger Source specified in ADCSRB.
+  // : ADIE  => ADC Interrupt Enable.
+  // : ADPS  => [2:0]: ADC Prescaler Select Bits: 000 => Input Clock = Sys.C./2.
+  // 
+  // ADCH, ADCL => The ADC Data Register 24.9.3, pg. 250:
+  //               When ADCL is read, the ADC Data Register is not updated until 
+  //               ADCH is read. Consequently, ADCL must be read first, then ADCH.
+  // 
+  // ADCSRB – ADC Control and Status Register B 24.9.4, pg. 251:
+  // : ACME => Analog Comparator Multiplexer Enable (Only applicable when using 
+  //           See Table 23-1, pg. 234.              Analog Comparator).
+  // : ADTS[2:0]: ADC Auto Trigger Source = 000 => Free Running Mode.
+  //
+  // DIDR0 – Digital Input Disable Register 0 24.9.5, pg. 251:
+  // : ADC[5:0]D : Digital Input Disable => Set to 1 to not power unused Digital 
+  //                                        Input Buffers on A0-5 Pins.
+}
+
+volatile bool timeToUpdateVoltageMeasurementAndSampleJoyStick = false;
+
+void updateVoltageMeasurementDisplayAndSampleJoyStickViaTimer1()
+{
+  timeToUpdateVoltageMeasurementAndSampleJoyStick = true;
+}
+
+// Only update Voltage Display once per 60 sec.
+const int voltageMeasurementDisplayDivisor = joyStickSamplesPerSec * 60;
+int voltageMeasurementDisplayCounter = 0;
+bool blockedAwaitingReply = false;
+
+void updateVoltageMeasurementAndSampleJoyStick()
+{
+  // Do the ADC sampling for the JoyStick's X and Y Axes every time.
+  //
+  if (get_R_Theta())
+  {
+    if (!blockedAwaitingReply)
+    {
+      blockedAwaitingReply = true;
+      displayOn2ndLine( "<Btn> = end wait");
+
+      displayAndSendJoyStickCmd();     // Send the JoyStick command to the Robot.
+      delay( 250);                     // Give the Robot time to respond.
+    }
+  }
+
+  // Only update the Voltage Measurement once per 60 sec.
+  //
+  if (voltageMeasurementDisplayCounter++ % voltageMeasurementDisplayDivisor)
+    return;
+
+  char voltageMsg[6];
+  int batteryADC = analogRead( BATTERY_BLUE_WIRE);
+
+  // 1.54V on the Voltage Divider = 4.92V in "real life".
+  const float voltageDividerScaleFactor = 4.92 / 1.54;
+
+  // map( value, fromLow, fromHigh, toLow, toHigh);
+  int batteryMV = map( batteryADC, 0, 1023, 0, 330);      // Fio = 3.3V.
+
+  batteryMV = batteryMV * voltageDividerScaleFactor;
+
+  // 11111
+  // 56789
+  // 4.92V
+  //
+  int digit = batteryMV / 100;
+  batteryMV -= digit * 100;
+  voltageMsg[0] = '0' + digit;
+
+  voltageMsg[1] = '.';
+
+  digit = batteryMV / 10;
+  batteryMV -= digit * 10;
+  voltageMsg[2] = '0' + digit;
+  
+  digit = batteryMV % 10;
+  voltageMsg[3] = '0' + digit;
+
+  voltageMsg[4] = 'V';
+  voltageMsg[5] = '\0';
+  
+  displaySerial.write( 139);                // Move to (0,11).
+  delay( 5);                                // Just in case this is needed.
+  displaySerial.print( voltageMsg);
+  delay( 5);                                // Just in case this is needed.
+
+  timeToUpdateVoltageMeasurementAndSampleJoyStick = false;
 }
 
 /* From the AT328MEGA Datsheet and here:
@@ -474,130 +602,11 @@ void setup()
 //
 // ISR( PCINT1_vect)      // Have to share this with SoftwareSerial Library.
 //
-//    bool pinState = bitRead( 
-//      *portInputRegister( digitalPinToPort( pin)),
-//      digitalPinToPCMSKbit( pin));
-//  or:
-//    bool pinState = 
-//      *portInputRegister( digitalPinToPort( pin)) & 
-//      digitalPinToBitMask( pin);
+volatile bool timeToUpdateDipSwitchStates = false;
 
-/*
-  volatile bool state1 = false;
-  volatile bool state2 = false;
-  volatile bool newDataForPrinting = false;
-  int interruptingPin = A0;
-*/
-inline void joystickPCINTisr()
-{  
-/*
-  state1 = !bitRead( 
-    *portInputRegister( digitalPinToPort( interruptingPin)),
-    digitalPinToPCMSKbit( interruptingPin));
-
-//  Serial.print( "state1 = ");
-//  Serial.println( state1);
-    
-  state2 = 
-    !(*portInputRegister( digitalPinToPort( interruptingPin)) & 
-    digitalPinToBitMask( interruptingPin));
-
-//  Serial.print( "state2 = ");
-//  Serial.println( state2);
-*/
-//  newDataForPrinting = true;
-  
-  updateDipSwitchStates();
-}
-
-char receivedMsg[100];
-int  receivedMsgNdx = 0;
-
-int dssCtr = 0;
-int batteryMeasureCtr = 0;
-bool blockedAwaitingReply = false;
-
-void loop()      
-{  
-  const int loopsToSkipChecking = 150;
-  
-  // Let's not spend _all_ of our time doing this.  This is a good value 
-  // to catch very brief button-presses.
-  //
-//  if (dssCtr++ % loopsToSkipChecking == 0)     
-//    updateDipSwitchStates();           // Now called in joystickPCINTisr();
-
-/*
-  if (newDataForPrinting)
-  {
-    Serial.print( "state1 = ");
-    Serial.print( state1);
-    Serial.print( "  state2 = ");
-    Serial.print( state2);
-    Serial.println( "");
-    
-    newDataForPrinting = false;    
-  }
-  
-  return;
-*/
-  if (batteryMeasureCtr++ % 10000 == 0)              // Ditto.
-    displayVoltageMeasurement();
-
-  if (dssCtr % loopsToSkipChecking == 0)     
-    operateDebouncedButton( SET_DIR_BUTTON, LED);    // Ditto.
-
-  if (get_R_Theta())
-  {
-    if (!blockedAwaitingReply)
-    {
-      blockedAwaitingReply = true;
-      displayOn2ndLine( "<Btn> = end wait");
-
-      displayAndSendJoyStickCmd(); // Send the JoyStick command to the Robot.
-      delay( 250);                     // Give the Robot time to respond.
-    }
-  }
-
-  bool firstChar = true;
-  
-  while (Serial.available())
-  {
-    char c = Serial.read();
-    if (c != '\r' && c != '\n')
-    {
-      if (firstChar)
-      {
-        firstChar = false;
-        receivedMsgNdx = 0;
-      }
-      receivedMsg[receivedMsgNdx++] = c;
-    }
-  }
-
-  if (!firstChar)                           // We received some reply.
-  {
-    clearJoyStickCmdDisplay();
-
-    receivedMsg[receivedMsgNdx] = '\0';
-    displayOn2ndLine( receivedMsg);
-
-    blockedAwaitingReply = false; // Unblock us from sending another command.  
-  }
-}
-
-bool readDipSwitchStateAndStoreIt( int pinNum, bool bValue, char *cValuePtr)
+inline void dipSwitchesPCINTisr()
 {
-  // These pins all have Pull-Up Resistors, so let's display a "1" when the
-  // pin's DIP Switch is closed.
-  // 
-  char newCValue = '0' + 1 - digitalRead( pinNum);
-  
-  bool changed = (*cValuePtr != newCValue);
-  
-  *cValuePtr = newCValue;
-  
-  return changed;           // We want to know if any Switches changed state.
+  timeToUpdateDipSwitchStates = true;
 }
 
 void updateDipSwitchStates()
@@ -610,9 +619,13 @@ void updateDipSwitchStates()
     Serial.print( "Switches changed. (");
     Serial.print( dipSwitchStates);
     Serial.println( ")");
-  }
   
-  displayOn2ndLine( dipSwitchStates); 
+    displayOn2ndLine( dipSwitchStates);
+    
+    operateDebouncedButton( SET_DIR_BUTTON, LED);
+  }
+
+  timeToUpdateDipSwitchStates = false;
 }
 
 // Our SET_DIR_BUTTON has a PullUp, so it's LOW only when it's currently 
@@ -637,34 +650,27 @@ bool prevButtonState      = curButtonState;
 // which of these Switches are HIGH.
 //
 // The lower-order bits (D2-D5) of the Switches form a bit-field.  Only 
-// one of the 16 possible functions is called when the SET_DIR_BUTTON is 
-// pushed.
+// one of the resulting 16 possible functions is called when the SET_DIR_BUTTON
+// is pushed.
 //
 void operateDebouncedButton( int buttonPinNum, int ledPinNum)
 {
-  curButtonState = digitalRead( buttonPinNum);  // Usually == SET_DIR_BUTTON.
+  curButtonState = getDipSwitchStateFromPinNum( buttonPinNum);
   
   // We only want to handle the ButtonWasReleased situation.
-  //
   // The if below will catch the Button being LOW, then being HIGH. 
   // 
   if (curButtonState == HIGH && prevButtonState == LOW)
   {
     delay( 1);                      // Crude form of button debouncing.
     
-    if (ledState == HIGH)
-    {
-      digitalWrite( ledPinNum, LOW);
-      ledState = LOW;
-      displaySerial.write( 18);                 // Turn backlight off.
-    } 
-    else 
-    {
-      digitalWrite( ledPinNum, HIGH);
-      ledState = HIGH;
-      displaySerial.write( 17);                 // Turn backlight on.
-    }
+    ledState = !ledState;
+    digitalWrite( ledPinNum, ledState);
     
+    // 17 = backlight on, 18 = backlight off.
+    displaySerial.write( 18 - ledState);
+    delay( 5);                                // Just in case this is needed.
+
     if (blockedAwaitingReply)          // Give ourselves an out for when 
     {                                  // we're tired of waiting.
       displayOn2ndLine( "<JoyStick ready>");
@@ -674,6 +680,58 @@ void operateDebouncedButton( int buttonPinNum, int ledPinNum)
     }
   }
   prevButtonState = curButtonState;
+}
+
+char receivedMsg[100];
+int  receivedMsgNdx = 0;
+
+void loop()      
+{
+  if (timeToUpdateVoltageMeasurementAndSampleJoyStick)
+    updateVoltageMeasurementAndSampleJoyStick();
+    
+  if (timeToUpdateDipSwitchStates)
+    updateDipSwitchStates();
+
+  bool firstChar = true;
+  
+  while (Serial.available())
+  {
+    char c = Serial.read();
+    if (c != '\r' && c != '\n')
+    {
+      if (firstChar)
+      {
+        firstChar = false;
+        receivedMsgNdx = 0;
+      }
+      receivedMsg[receivedMsgNdx++] = c;
+    }
+  }
+
+  if (!firstChar)                           // We received some reply.
+  {
+    clearJoyStickCmdDisplay();
+
+    receivedMsg[receivedMsgNdx] = '\0';
+    displayOn2ndLine( receivedMsg);
+
+    blockedAwaitingReply = false; // Unblock us from sending another command.
+  }
+}
+
+bool readDipSwitchStateAndStoreIt( int pinNum, bool bValue, char *cValuePtr)
+{
+  // These pins all have Pull-Up Resistors, so let's display a "1" when the
+  // pin's DIP Switch is closed.
+  // 
+  char newCValue = '0' + 1 - digitalRead( pinNum);
+  
+  bool changed = (*cValuePtr != newCValue);
+  
+  *cValuePtr = newCValue;
+  
+  return changed;           // We want to know if any Switches changed state.
 }
 
 void debugPrint()
@@ -735,58 +793,28 @@ void displayAndSendJoyStickCmd()
   joystickMsg[8] = '\0';
 
   displaySerial.write( 128);                // Move to (0,0).
+  delay( 5);                                // Just in case this is needed.
 
   displaySerial.print( joystickMsg);
+  delay( 10);                               // Just in case this is needed.
+
   Serial.println( joystickMsg); // Send our JoyStick command to the Robot.
 }
 
 void clearJoyStickCmdDisplay()
 {
   displaySerial.write( 128);                // Move to (0,0).
+  delay( 5);                                // Just in case this is needed.
   displaySerial.print( "        ");
-}
-
-void displayVoltageMeasurement()
-{
-  char voltageMsg[6];
-  int batteryADC = analogRead( BATTERY_BLUE_WIRE);
-
-  // 1.54V on the Voltage Divider = 4.92V in "real life".
-  const float voltageDividerScaleFactor = 4.92 / 1.54;
-
-  // map( value, fromLow, fromHigh, toLow, toHigh);
-  int batteryMV = map( batteryADC, 0, 1023, 0, 330);      // Fio = 3.3V.
-
-  batteryMV = batteryMV * voltageDividerScaleFactor;
-
-  // 11111
-  // 56789
-  // 4.92V
-  //
-  int digit = batteryMV / 100;
-  batteryMV -= digit * 100;
-  voltageMsg[0] = '0' + digit;
-
-  voltageMsg[1] = '.';
-
-  digit = batteryMV / 10;
-  batteryMV -= digit * 10;
-  voltageMsg[2] = '0' + digit;
-  
-  digit = batteryMV % 10;
-  voltageMsg[3] = '0' + digit;
-
-  voltageMsg[4] = 'V';
-  voltageMsg[5] = '\0';
-  
-  displaySerial.write( 139);                // Move to (0,11).
-  displaySerial.print( voltageMsg);
+  delay( 10);                               // Just in case this is needed.
 }
 
 void displayCharOn2ndLine( char c, int pos)
 {
-  displaySerial.write( 148 + pos);            // Move to (1, pos).
+  displaySerial.write( 148 + pos);          // Move to (1, pos).
+  delay( 5);                                // Just in case this is needed.
   displaySerial.write( c);
+  delay( 5);                                // Just in case this is needed.
 }
 
 // Add const to arg to suppress warning when passing in literal string.
@@ -798,20 +826,23 @@ void displayOn2ndLine( const char* msg)
   const char spaces[] = "                ";
 
   displaySerial.write( 148);                // Move to (1,0).
+  delay( 5);                                // Just in case this is needed.
   displaySerial.print( msg);
+  delay( 15);                               // Just in case this is needed.
 
   int startSpacesNdx = strlen( msg);
 
   if (startSpacesNdx < strlen( spaces))
     displaySerial.print( &(spaces[startSpacesNdx]));
-    
-  delay( 15);
+    // Already delay()'ed enough just above.
 }
 
 void plataDuckBulletin()
 {
   displaySerial.write( 18);                 // Turn backlight off.
+  delay( 5);                                // Just in case this is needed.
   displaySerial.write( 12);                 // Clear.
+  delay( 5);                                // Just in case this is needed.
 
   //  while( digitalRead( SETDIRBUTTON))    // Wait patiently for the 
   //  {};                                   // button to be pushed.
@@ -845,9 +876,11 @@ void plataDuckBulletin()
 void playSongOfTheWind_Suzuki3()
 {
   displaySerial.write( 12);                 // Clear.
+  delay( 5);                                // Just in case this is needed.
   displaySerial.write( 17);                 // Turn backlight on.
   delay( 5);                                // Required delay.
   displaySerial.write( "Song of the Wind");
+  delay( 15);                               // Just in case this is needed.
 
   // For me, C, F, & G are Flat.
   // A, A#, B, C, C#, D, D#, E, F, F#, G, G#, Rest
