@@ -1326,5 +1326,12 @@ efficient use of resources.
 
 Grounded all unusued ADC inputs, to decrease battery consumption and ADC noise.
 
+De-jitter'ed get_R_Theta(), so it's not constantly spewing un-commanded JoyStick
+output, needlessly tying up the JoyStick's Display.  Especially stop it from 
+producing endless r=0 JoyStick output.
+
+Added Calibration Procedure to the JoyStick code, to help ensure that it's producing
+correct values.
+
 Results/Solutions:
 -----------------

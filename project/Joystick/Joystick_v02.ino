@@ -10,46 +10,7 @@
 #define DISPLAY_GREEN_WIRE 12    // Digital.
 #define LED                13
 
-const int firstSwitchPinNum = 2;
-const int lastSwitchPinNum  = SET_DIR_BUTTON;
-const int numSwitchPins     = lastSwitchPinNum - firstSwitchPinNum + 1;
-
-const int adcSwitches[] = {A0};  // = 14;
-const int numADCswitches = sizeof( adcSwitches) / sizeof( int);
-const int lastADCswitchPinNum = adcSwitches[numADCswitches - 1];
-
-const int xMin    =    0;    // or 1, or 2.
-const int xMax    = 1021;    // or 1022.
-const int xCenter =  513;
-const int xAvg    =  510;
-
-const int yMin    =    0;    // or 1 or 2.
-const int yMax    = 1023;    // or 1022.
-const int yCenter =  514;    // or 503.
-const int yAvg    =  511;
-
-int prevHorizontal = 0, prevVertical = 0;
-int horizontal, vertical;
-double xVal  = 0, yVal = 0;
-int rVal0 = 0, rVal = 0, prevRval = -1;
-int thetaVal0 = 0, thetaVal = 0, prevThetaVal = -1;
-
-const int   numThetaSectors       = 16;
-const float degreesPerThetaSector = 360.0 / numThetaSectors;
-const int   noiseCeiling          = 250;
-const int   fullScaleFloor        = 900;
-const int   numRadiusRanges  = 8;
-const int   radiusRangeWidth = (fullScaleFloor - noiseCeiling) / numRadiusRanges;
-
-int radiusRangeCeilings[numRadiusRanges + 1]; // +1 for noise bulls-eye.
-
-void setRadiusRangeValues()
-{
-  for (int i = 0 ; i <= numRadiusRanges ; i++)
-  {
-    radiusRangeCeilings[i] = noiseCeiling + radiusRangeWidth * i;
-  }
-}
+#define DEBUGx
 
 int signI( int i)
 {
@@ -62,49 +23,224 @@ int signI( int i)
   return 2;        // So 0 ends up being 2 * rotationModeFlag;
 }
 
-#define DEBUG0
+const int firstSwitchPinNum = 2;
+const int lastSwitchPinNum  = SET_DIR_BUTTON;
+const int numSwitchPins     = lastSwitchPinNum - firstSwitchPinNum + 1;
 
-// The Plus and Minus values above define an Ellipse, in which to define R-Theta values.
+const int adcSwitches[] = {A0};  // = 14;
+const int numADCswitches = sizeof( adcSwitches) / sizeof( int);
+const int lastADCswitchPinNum = adcSwitches[numADCswitches - 1];
+
+// JoyStick Calibration Procedure:
 //
-boolean get_R_Theta()
+// CALIBRATING == 'c' => Cartesian.  Do this first, copy results into vars.
+// CALIBRATING == 'p' => Polar.      Do this second.
+// CALIBRATING == 'x' => Calibrated normal operation.
+//
+// To run the Calibration routine...
+//
+// Append "x" to #define DEBUG, it it's not there already, to allow "c"-Calibration
+// to free-run.
+//
+// Change CALIBRATING's value to 'c'.  This specifies collection of the initial 
+// Cartesian Calibration values.
+// Move the JoyStick around in all directions, and enter the last displayed values 
+// under the #else below.  Don't change the values above the #else.
+//
+// Change CALIBRATING's value to 'p'.  This specifies collection of Polar Calibration
+// values.
+//
+#define CALIBRATING 'x'
+
+#if CALIBRATING == 'c'
+int xMin    = 9999;
+int xMax    =    0;
+int xCenter =    0;
+
+int yMin    = 9999;
+int yMax    =    0;
+int yCenter =    0;
+#else
+int xMin    =    0;
+int xMax    = 1023;
+int xCenter =  515;
+
+int yMin    =   53;
+int yMax    = 1023;
+int yCenter =  515;
+// int maxRperTheta[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+int maxRperTheta[] = {  // Different directions have different max. values.
+  1021,1103,1054,1097,1021,1185,1238,1192,1022,1206,1184,1229,1139,1169,1075,1119
+};
+#endif
+
+const int   numThetaSectors           =  16;
+const float degreesPerThetaSector     = 360.0 / numThetaSectors;
+const float degreesPerHalfThetaSector = degreesPerThetaSector / 2.0;
+const float degreesPerTwoThetaSectors = degreesPerThetaSector * 2.0;
+const int   noiseCeiling              = 250;
+const int   fullScaleFloor            = 900;
+const int   numRadiusRanges           =   8;
+const int   radiusRangeWidth = (fullScaleFloor - noiseCeiling) / numRadiusRanges;
+
+int radiusRangeCeilings[numRadiusRanges + 1]; // +1 for noise bulls-eye.
+
+void setRadiusRangeValues()
 {
-  boolean changed = false;
+  for (int i = 0 ; i <= numRadiusRanges ; i++)
+  {
+    radiusRangeCeilings[i] = noiseCeiling + radiusRangeWidth * i;
+  }
+}
 
-  horizontal = analogRead( HORIZ_ORANGE_WIRE);  // will be 0-1023.
-  vertical   = analogRead( VERT_GREEN_WIRE);    // will be 0-1023.
+int prevHorizontal = 0, prevVertical = 0;
+int rVal0 = 0, rVal = 0, prevRval = 0;
+int thetaVal0 = 0, thetaVal = 0, prevThetaVal = -1;  // Ditto.
 
-  const int perSampleNoiseBand = 3;
+#ifdef DEBUG
+int maxTimesThrough = 10;
+#endif
 
-  if (abs( horizontal - prevHorizontal) > perSampleNoiseBand)
-    changed = true;
-  if (abs( vertical - prevVertical) > perSampleNoiseBand)
-    changed = true;
+// Only called when CALIBRATING is == 'c' or 'p'.
+//
+void calibrate_R_Theta()
+{
+#ifdef DEBUG
+  if (maxTimesThrough <= 0)
+    return;
+  maxTimesThrough--;
+#endif
 
-  if (!changed)
-    return changed;
+  int horizontal = analogRead( HORIZ_ORANGE_WIRE);  // Theoretically, will be 0-1023.
+  int vertical   = analogRead( VERT_GREEN_WIRE);    // Theoretically, will be 0-1023.  
 
-  prevHorizontal = horizontal;
-  prevVertical   = vertical;
+#if CALIBRATING == 'c'
+  if (horizontal < xMin && horizontal != 0)     // It seems to love to 
+    xMin = horizontal;                          // inaccurately jump to 0.
+  if (horizontal > xMax)
+    xMax = horizontal;
+  if (vertical < yMin && vertical != 0)         // Ditto.
+    yMin = vertical;
+  if (vertical > yMax)
+    yMax = vertical; 
+   
+  Serial.print( "x: ");
+  Serial.print( xMin);
+  Serial.print( ",");
+  Serial.print( xMax);
+  Serial.print( "  y: ");
+  Serial.print( yMin);
+  Serial.print( ",");
+  Serial.print( yMax);
+  Serial.print( "  ");
+  Serial.print( "  center: ");
+  Serial.print( horizontal);
+  Serial.print( ",");
+  Serial.println( vertical);
+#else
+  double xVal, yVal;
 
-  if (horizontal < xCenter)
-    xVal = map( horizontal, xMin, xCenter, -1000, 0);
-  else if (horizontal > xCenter)
-    xVal = map( horizontal, xCenter, xMax, 0, 1000);
+  mapHVtoXY( horizontal, vertical, &xVal, &yVal);
+  mapXYtoRTheta( xVal, yVal, &rVal, &thetaVal);
+
+  if (maxRperTheta[thetaVal] < rVal0)
+    maxRperTheta[thetaVal] = rVal0;
+  
+  for (int i = 0 ; i < numThetaSectors ; i++)
+  {
+    Serial.print( maxRperTheta[i]);
+    if (i < numThetaSectors - 1)
+      Serial.print( ",");
+  }
+  Serial.println( "");
+#endif
+}
+
+void mapHVtoXY( int h, int v, double* xVal, double* yVal)
+{
+#ifdef DEBUG
+  Serial.print( "\n(h, v) = (");
+  Serial.print( h);
+  Serial.print( ", ");
+  Serial.print( v);
+  Serial.println( ")");
+#endif
+  
+  // Map us to cover +/-1000 in both x and y.
+  if (h < xCenter)
+    *xVal = mapD( h, xMin, xCenter, -1000, 0);
+  else if (h > xCenter)
+    *xVal = mapD( h, xCenter, xMax, 0, 1000);
   else
-    xVal = 0;
+    *xVal = 0;
 
-  if (vertical < yCenter)
-    yVal = map( vertical, yMin, yCenter, -1000, 0);
-  else if (vertical > yCenter)
-    yVal = map( vertical, yCenter, yMax, 0, 1000);
+  if (v < yCenter)
+    *yVal = mapD( v, yMin, yCenter, -1000, 0);
+  else if (v > yCenter)
+    *yVal = mapD( v, yCenter, yMax, 0, 1000);
   else
-    yVal = 0;
+    *yVal = 0;
 
-  // Convert (x, y) Cartesian Coordinates to (r, theta) Polar Coordinates.
-  // Convert r into one of <numRadiusRanges> radiusRanges,
-  // and theta into one of <numThetaSectors> thetaSectors.
-  //
-  rVal0 = sqrt( xVal * xVal + yVal * yVal);
+#ifdef DEBUG
+  Serial.print( "(x, y) = (");
+  Serial.print( *xVal, 0);
+  Serial.print( ", ");
+  Serial.print( *yVal, 0);
+  Serial.println( ")");
+#endif
+}
+
+double mapD( long x, long imin, long imax, long omin, long omax)
+{
+#ifdef DEBUG
+  Serial.print( "mapD( d:");
+  Serial.print( x);
+  Serial.print( " imin:");
+  Serial.print( imin);
+  Serial.print( " imax:");
+  Serial.print( imax);
+  Serial.print( " omin:");
+  Serial.print( omin);
+  Serial.print( " omax:");
+  Serial.print( omax);
+  Serial.print( ") = ");
+#endif
+
+  double numP1 = x - imin;
+  double numP2 = omax - omin + 1;
+  double denominator = imax - imin + 1;
+  double result = omin + numP1 * numP2 / denominator;
+  
+#ifdef DEBUG
+  Serial.print( omin);
+  Serial.print( " + ");
+  Serial.print( numP1, 0);
+  Serial.print( " * ");
+  Serial.print( numP2, 0);
+  Serial.print( " / ");
+  Serial.print( denominator, 0);
+  Serial.print( " = ");
+  Serial.println( result);
+#endif
+
+  return result;
+}
+
+const int   degreesPerCircleI = 360;
+const float degreesPerCircleF = 360.0;
+
+// Convert (x, y) Cartesian Coordinates to (r, theta) Polar Coordinates.
+// Convert r into one of <numRadiusRanges> radiusRanges,
+// and theta into one of <numThetaSectors> thetaSectors.
+//
+void mapXYtoRTheta( double xVal, double yVal, int* rVal, int* thetaVal)
+{
+  rVal0 = sqrt( xVal * xVal + yVal * yVal) + 0.5;
+
+#ifdef DEBUG
+  Serial.print( "rVal0 = ");
+  Serial.println( rVal0);
+#endif
 
   // Find the first radiusRangeCeiling that rVal0 is less than.
   //
@@ -119,16 +255,13 @@ boolean get_R_Theta()
   // i == numRadiusRanges, means we're in the full-deflection outer-donut,
   //      which formerly had special significance, indicating Rotation, and now
   //      is treated the same as other RadiusRanges.
-  rVal = i;
-
-  const float degreesPerCircleF = 360.0;
-  const int   degreesPerCircleI = 360;
+  *rVal = i;
 
 #ifdef DEBUG
-  Serial.print( "\n(r, theta) = (");
+  Serial.print( "(r, theta) = (");
   Serial.print( rVal0);
   Serial.print( " : ");
-  Serial.print( rVal);
+  Serial.print( *rVal);
 #endif
 
   // Calculate thetaVal.
@@ -148,44 +281,67 @@ boolean get_R_Theta()
   //
   // Rotate thetaVal half a sector CW, so sectors will straddle their center-theta's.
   //
-  thetaVal0 = int( thetaVal0 + degreesPerThetaSector / 2.0) % degreesPerCircleI;
+  thetaVal0 = int( thetaVal0 + degreesPerHalfThetaSector) % degreesPerCircleI;
 
 #ifdef DEBUG
   Serial.print( "thetaVal0b = ");
   Serial.print( thetaVal0);
 #endif
 
-  thetaVal = int( thetaVal0 / degreesPerThetaSector);
+  *thetaVal = int( thetaVal0 / degreesPerThetaSector);
 
 #ifdef DEBUG
   Serial.print( " => thetaVal = ");
-  Serial.println( thetaVal);
+  Serial.println( *thetaVal);
 #endif
+}
+
+boolean get_R_Theta()
+{
+  boolean changed = false;
+  double xVal = 0, yVal = 0;
+
+  int horizontal = analogRead( HORIZ_ORANGE_WIRE);  // will be 0-1023.
+  int vertical   = analogRead( VERT_GREEN_WIRE);    // will be 0-1023.
+
+  const int perSampleNoiseBand = 3;
+  if (abs( horizontal - prevHorizontal) <= perSampleNoiseBand &&
+      abs( vertical - prevVertical) <= perSampleNoiseBand)
+    return changed;
+
+  prevHorizontal = horizontal;
+  prevVertical   = vertical;
+
+  mapHVtoXY( horizontal, vertical, &xVal, &yVal);
+  mapXYtoRTheta( xVal, yVal, &rVal, &thetaVal);
 
   // When rVal <= numRadiusRanges / 2, the JoyStick cannot resolve 16 thetaSectors,
   // so smash the 3 {slight,medium,hard} types of turns into only {medium} turns.
   //
+  // Alas, this means that when driving slowly, only medium turns are possible, 
+  // but so be it, until I can devise a new strategy to handle this shortcoming
+  // of the JoyStick.
+  //                      // + 3 more, to smash even more RadiusRanges for now.
   const int sectorsTooNarrowBelowRadiusRangeNdx = numRadiusRanges / 2 + 3;
-  const int numQuadrants = 4;
 
   if (rVal < sectorsTooNarrowBelowRadiusRangeNdx)
   {
     // Rotate thetaVal another half a sector CW, so sectors will straddle their
-    // center-theta's for double the degreesPerThetaSector.
+    // center-theta's for Sectors that are degreesPerTwoThetaSectors degrees wide.
     //
-    thetaVal0 = int( thetaVal0 + degreesPerThetaSector / 2.0) % degreesPerCircleI;
+    thetaVal0 = int( thetaVal0 + degreesPerHalfThetaSector) % degreesPerCircleI;
 
     // Re-compute thetaVal based on having half as many thetaSectors.
     //
-    int newThetaVal = int( thetaVal0 / (degreesPerThetaSector * 2));
+    int newThetaVal = int( thetaVal0 / degreesPerTwoThetaSectors);
 
 #ifdef DEBUG
-    Serial.print( "squashed          newThetaVal = ");
+    Serial.print( "squeezed         newThetaVal = ");
     Serial.println( newThetaVal);
 #endif
 
     // Re-stretch out the value to spread it back across the original # of sectors.
-    newThetaVal = newThetaVal * 2;
+    newThetaVal *= 2;
 
 #ifdef DEBUG
     Serial.print( "newThetaVal2 = ");
@@ -208,20 +364,36 @@ boolean get_R_Theta()
   // iteration, when subtracting from prevThetaVal.
   //
   thetaVal += numThetaSectors;
+  
+  // We want to avoid sending adjacent rVal=0 commands, even if thetaVal has
+  // changed.
+  //
+  changed = false;                     // Re-start our considerations.
 
-  changed = false;            // Re-start our considerations.
-
-  if (rVal != prevRval || fabs( thetaVal - prevThetaVal) >= 1.0)
+  if (prevRval == 0 && rVal == 0)
   {
-    changed = true;    // Try to prevent bogus point when snapping
-
+    // Just ignore this case
+#ifdef DEBUG
+    Serial.println( "Ignoring r = 0 -> 0");
+#endif
+  }
+  else if (prevRval != 0 && rVal == 0)      // This is our Stop command.
+  {
+    changed = true;    
+    prevRval = rVal;
+    // Don't update prevThetaVal in this case.
+#ifdef DEBUG
+    Serial.println( "Approving: r = !0 -> 0");
+#endif
+  }
+  else if (thetaVal != prevThetaVal)
+  {
+    changed = true;
     prevRval = rVal;
     prevThetaVal = thetaVal;
-  }
-  else
-  {
-    //    Serial.print( "No #1: ");
-    //    debugPrint();
+#ifdef DEBUG
+    Serial.println( "Approving: theta != prevTheta");
+#endif
   }
 
   return changed;
@@ -410,7 +582,13 @@ void setup()
   setRadiusRangeValues();
 
   displayOn2ndLine( "<JoyStick ready>");
-  
+
+  // Suck up the first junk sampling due to the ADC still initializing, so
+  // the ADC will be ready when Timer1 calls SampleJoyStick() just below.
+  //
+  analogRead( HORIZ_ORANGE_WIRE);  // will be 0-1023.
+  analogRead( VERT_GREEN_WIRE);    // will be 0-1023.
+ 
   // Call this at 20Hz, to do the JoyStick ADC readings.
   Timer1.initialize( 1000UL * 1000UL / joyStickSamplesPerSec);  
   Timer1.attachInterrupt( 
@@ -687,6 +865,11 @@ int  receivedMsgNdx = 0;
 
 void loop()      
 {
+#if CALIBRATING == 'c' || CALIBRATING == 'p'
+  calibrate_R_Theta();
+  return;
+#endif
+  
   if (timeToUpdateVoltageMeasurementAndSampleJoyStick)
     updateVoltageMeasurementAndSampleJoyStick();
     
@@ -734,32 +917,7 @@ bool readDipSwitchStateAndStoreIt( int pinNum, bool bValue, char *cValuePtr)
   return changed;           // We want to know if any Switches changed state.
 }
 
-void debugPrint()
-{
-  Serial.print( "horizontal: ");
-  Serial.print( horizontal, DEC);
-  Serial.print( " vertical: ");
-  Serial.print( vertical, DEC);
 
-  /*
-    Serial.print( "button = ");
-    Serial.print( buttonState, DEC);
-    Serial.print( "  ");
-  */
-  Serial.print( "   xVal: ");
-  Serial.print( xVal, 0);
-  Serial.print( " yVal: ");
-  Serial.print( yVal, 0);
-
-  Serial.print( "   rVal0: ");
-  Serial.print( rVal0, DEC);
-  Serial.print( " rVal: ");
-  Serial.print( rVal, DEC);
-  Serial.print( " thetaVal0: ");
-  Serial.print( thetaVal0, 0);
-  Serial.print( " thetaVal: ");
-  Serial.println( thetaVal, 4);
-}
 // Make our print format more structured, to simplify deciding if it's been
 // received intact by the Robot.
 //
