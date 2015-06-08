@@ -23,14 +23,6 @@ int signI( int i)
   return 2;        // So 0 ends up being 2 * rotationModeFlag;
 }
 
-const int firstSwitchPinNum = 2;
-const int lastSwitchPinNum  = SET_DIR_BUTTON;
-const int numSwitchPins     = lastSwitchPinNum - firstSwitchPinNum + 1;
-
-const int adcSwitches[] = {A0};  // = 14;
-const int numADCswitches = sizeof( adcSwitches) / sizeof( int);
-const int lastADCswitchPinNum = adcSwitches[numADCswitches - 1];
-
 // JoyStick Calibration Procedure:
 //
 // CALIBRATING == 'c' => Cartesian.  Do this first, copy results into vars.
@@ -469,10 +461,22 @@ bool setDipSwitchPinMode( int pinNum, bool bValue, char *cValuePtr)
 
   return true;
 }
-                       // 11        A
-                       // 10987654320
-char dipSwitchStates[] = "00000000000";
-                       // 01234567890
+
+// We're abstracting out the internal implementation of dipSwitchStates[]. 
+// Display DIPswitch states in this order: {A0, A1, A2, 11, 10, ..., 3, 2};
+//                                          14  15  16  ^^
+                       // AAA11                    SET_DIR_BUTTON
+                       // 0121098765432
+char dipSwitchStates[] = "0000000000000";
+                       // 0123456789012
+
+const int firstSwitchPinNum = 2;
+const int lastSwitchPinNum  = SET_DIR_BUTTON;
+const int numSwitchPins     = lastSwitchPinNum - firstSwitchPinNum + 1;
+
+const int adcSwitches[] = {A0, A1, A2};
+const int numADCswitches = sizeof( adcSwitches) / sizeof( int);
+const int lastADCswitchPinNum = adcSwitches[numADCswitches - 1];
 
 // Loop through the DIP Switches, calling processValueFunction() for each
 // of them.
@@ -488,9 +492,9 @@ char dipSwitchStates[] = "00000000000";
 inline int getDipSwitchCharNdx( int pinNum)
 {
   if (pinNum <= lastSwitchPinNum)
-    return lastSwitchPinNum - pinNum;
+    return numADCswitches + lastSwitchPinNum - pinNum;
   else
-    return numSwitchPins + pinNum - lastADCswitchPinNum;
+    return pinNum - adcSwitches[0];
 }
 
 inline bool getDipSwitchStateFromPinNum( int pinNum)
@@ -521,18 +525,17 @@ bool callThisFunctionForEveryDipSwitch(
 {
   bool result = false;
   
-  // First process the DIP Switches connected to Digital pins.
-  for (int pinNum = firstSwitchPinNum ; pinNum <= lastSwitchPinNum ; pinNum++)
-  {
-    result |= callThisFunctionForThisDipSwitch( processValueFunction, pinNum);
-  }
-  
-  // Then do the ones connected to ADC pins.
+  // First do the ones connected to ADC pins.
   for (int adcPinNdx = 0 ; adcPinNdx < numADCswitches ; adcPinNdx++)
   {
     result |= 
-      callThisFunctionForThisDipSwitch( 
-        processValueFunction, adcSwitches[adcPinNdx]);
+      callThisFunctionForThisDipSwitch( processValueFunction, adcSwitches[adcPinNdx]);
+  }
+
+  // Then process the DIP Switches connected to Digital pins.
+  for (int pinNum = firstSwitchPinNum ; pinNum <= lastSwitchPinNum ; pinNum++)
+  {
+    result |= callThisFunctionForThisDipSwitch( processValueFunction, pinNum);
   }
 
   return result;
