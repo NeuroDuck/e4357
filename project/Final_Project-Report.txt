@@ -1311,8 +1311,10 @@ Update:
 
 Re: JoyStick Code:
 
-Migrate A0's DIP Switch Status position from the end of the "10101101"'s, to the 
+Migrated A0's DIP Switch Status position from the end of the "10101101"'s, to the 
 front, to match the order that the switches are actually placed on the breadboard.
+Connected two more of the DIP Switches to Pins A1 and A2, as there are no more 
+Digital Pins left to connect them to.
 
 Migrated the invocation of get_R_Theta() from polling, to be invoked by the Timer1
 library, at 20Hz.  Ditto for displayVoltageMeasurement(), which is now invoked at 
@@ -1332,6 +1334,10 @@ producing endless r=0 JoyStick output.
 
 Added Calibration Procedure to the JoyStick code, to help ensure that it's producing
 correct values.
+
+Completed wiring up of all DIP Switches using Ribbon Cable.  See the photos:
+
+    "New JoyStick Switches and State Display-p1.jpg" & "...-p2.jpg"
 
 Results/Solutions:
 -----------------
