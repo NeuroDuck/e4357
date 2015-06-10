@@ -892,7 +892,7 @@ Ground).
 
 When the user pushes "the JoyStick's Button", functions in the Robot will be run, selected 
 by whichever of the DIPswitches are in their "active" state.  I'll probably create some
-sort of primitive way for the user to specify an argument to the function invoction as well.
+sort of primitive way for the user to specify an argument to the function invocation as well.
 
 I'll be adding a Compass to both the JoyStick and the Robot, so the Robot can steer 
 relative to the JoyStick's "forward" direction, rather than relative to the Robot's 
@@ -1319,9 +1319,6 @@ Digital Pins left to connect them to.
 Migrated the invocation of get_R_Theta() from polling, to be invoked by the Timer1
 library, at 20Hz.  Ditto for displayVoltageMeasurement(), which is now invoked at 
 1/60Hz.  
- 
-Add "JoyStick battery dead." check to displayVoltageMeasurement(), and ensure that 
-it is actually displayed long enough to be noticed by the user.
 
 These are both currently being polled at full-speed, so this approach is a much more
 efficient use of resources.
@@ -1335,9 +1332,91 @@ producing endless r=0 JoyStick output.
 Added Calibration Procedure to the JoyStick code, to help ensure that it's producing
 correct values.
 
-Completed wiring up of all DIP Switches using Ribbon Cable.  See the photos:
+Completed wiring up of all DIP Switches using Ribbon Cable, and confirmed that the 
+display of their States is correct.  See the photos:
 
     "New JoyStick Switches and State Display-p1.jpg" & "...-p2.jpg"
+	
+Update:
+------
 
+Add "JoyStick battery dead." check to displayVoltageMeasurement(), and ensure that 
+it is actually displayed long enough to be noticed by the user.
+
+Add the new LSM303D Compass to the JoyStick, and sync the Robot's idea of "North", to 
+whichever direction the JoyStick is pointing.
+
+Upcoming new Features list resurrected from up above...
+
+Features/Functions to be run when various DIP Switch values are set:
+
+1. Enable/Disable "Wait for Robot reply before allowing new JoyStick input", which 
+   blocks future JoyStick inputs, when awaiting a reply from the Robot to the previous 
+   JoyStick command sent to it.
+   
+2. I'm in progress on wiring up 12 DIP switches for the JoyStick, so I'll assign 2 of
+   them to be read in the JoyStick's setup() to specify the target XBee DA.
+
+Currently I'm envisioning using 4 of these bits to specify a heading argument for my 
+function calls to the Robot (the JoyStick only produces 16 possible heading values, 
+2 of which are Rotate left and right, rather than being any amount of forward/backward 
+motion.
+
+Likewise 3 bits can be for invoking any one of 8 Robot functions.
+
+The remaining 7 bits for can be for invoking one or all of 7 different Robot functions.
+
+Command Syntax the JoyStick sends to the Robot:
+
+	!r th cc   Driving command: r=0-9 speed, th=0-15 direction, cc=checksum=r+th.
+	@xxx[=yyy] Query or set parameter xxx [to yyy] in the Robot's Parameters assoc. array.
+	%xxx[=yyy] Do the same in the JoyStick.
+	*xx nn cc  Call function xx on the Robot (specified by the JoyStick's DIPswitches), 
+			   with nn arguments to follow, and cc=checksum.
+	(argVal cc An argument for the previous Robot function call. 
+	[Or just send all the DIPSwitch bits as a text field, and let the Robot sort them out?]
+	
+Update:
+------
+
+I struggled at some length with adding the new LSM303D Compass to the JoyStick:
+
+	https://www.pololu.com/product/2127
+	
+in that it was producing garbage headings.  I finally identified a working hardware and 
+library configuration.  
+
+The versions of the Compass libraries that I had success with are here:
+
+    e4357/project/libraries-Arduino
+	
+The Arduino Compass testing code that I had success with is here:
+
+	e4357/project/Compass/Arduino-Sensor Testing
+	
+A photo of my successful Compass testing circuit (give special attention to the shortness
+of the wires!), is here:
+
+	"e4357/project/Compass/LSM303DLM vs. LSM303D Heading Differences-Shortest Wiring.jpg"
+	
+I had a LSM303DLM from a few years ago, whose heading values I compared with those of the 
+new LSM303D that I bought last month, as shown here:
+
+	"e4357/project/Compass/LSM303DLM vs. LSM303D Heading Differences-plot.gif"
+
+It's interesting to see such a clear (and non-linear) pattern of differences between the 
+two Compasses.
+
+I found that the LSM303D is about 10x-20x(!) _more_ sensitive to long signal wires than the
+LSM303DLM is.  
+
+On the plus side, I also found that the LSM303D has about 2x less random heading flipping
+back-and-forth than the LSM303DLM does.  To wit, the D flipped back and forth only 1 degree,
+while the DLM flipped 2-3 degrees, both when sitting completely stationary.
+
+Next I'll try to migrate the LSM303D to the JoyStick, in hopes of devising some placement 
+where its wires are short enough that it will be able to provide meaningful, stable readings.
+
+	
 Results/Solutions:
 -----------------
