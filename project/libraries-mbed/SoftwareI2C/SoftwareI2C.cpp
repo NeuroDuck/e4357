@@ -24,8 +24,8 @@ SoftwareI2C::SoftwareI2C(PinName sda, PinName scl) : _sda(sda) , _scl(scl) {
     initialise();
 }
 
-SoftwareI2C::~SoftwareI2C() {
-
+SoftwareI2C::~SoftwareI2C() 
+{
 }
 
 /**
