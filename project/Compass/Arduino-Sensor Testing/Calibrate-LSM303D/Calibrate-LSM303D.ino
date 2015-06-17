@@ -1,70 +1,164 @@
-#include <Wire.h>
+#include <Arduino.h>
+
+#define SCLPIN_GREEN_PROBE A0
+#define SDAPIN_BLUE_PROBE  A1
+
+#include <UsefulFunctions.h>
+#include <SoftI2CMaster.h>
+
+// We do the setup in setup(), to allow i2cSM.setPins()'s debugging print
+// statements to print successfully.
+//
+SoftI2CMaster i2cSM;  
+
 #include <LSM303D.h>
-#include <LSM303DLM.h>
 
-LSM303D compassD;
+// LSM303D compassD;
+
 LSM303D::vector<int16_t> 
-  runningD_min = { 32767,  32767,  32767}, 
-  runningD_max = {-32768, -32768, -32768};
-  
-LSM303DLM compass;
-LSM303DLM::vector running_min = {2047, 2047, 2047}, running_max = {-2048, -2048, -2048};
+  running_min = { 32767,  32767,  32767}, 
+  running_max = {-32768, -32768, -32768};
 
+// Read a single byte from address and return it as a byte.
+//
+/*
+byte readRegister(uint8_t address)
+{
+  byte data;
+
+//  i2cSM.beginTransmission( MMA8452_ADDRESS);
+  i2cSM.write( address);
+  i2cSM.endTransmission();
+
+//  i2cSM.requestFrom( MMA8452_ADDRESS);
+  data = i2cSM.readLast();
+  i2cSM.endTransmission();
+  
+  return data;
+}
+*/
 void setup()
 {
   Serial.begin( 57600);
-
   Serial.println( "setup()");
 
-  Wire.begin();
+  i2cSM.setPins( 
+    SCLPIN_GREEN_PROBE, 
+    SDAPIN_BLUE_PROBE, 
+    SoftI2CMaster::i2c_internal_pullups,  // Trigger won't happen when SCL
+    SoftI2CMaster::i2c_scl_not_pulled_up  // is Pulled-Up.
+  );
 
-  compassD.init();
-  compassD.enableDefault();
+// From:
+// http://forum.arduino.cc/index.php?PHPSESSID=77d80gbsl7bdpl72j9gnq5lo65&topic=126021.msg947589#msg947589
+// "2) capacitance: In the 2nd block of code, the port is (presumed) 
+// high before it was turned into input."
+//
+// In other words, the short positive pulse I see after issuing
+// i2cSM.i2c_scl_hi(), may be due to that capacitance bleeding off.
 
-  compass.init();
-  compass.enableDefault();
+  while (1)
+  {
+    i2cSM.i2c_sda_lo();
+    _delay_us( 4);    // = 8 uS., As per LSM303D datasheet, Table 7, pg. 14.
+    i2cSM.i2c_scl_lo();
+    _delay_us( 10);
+return;
+    i2cSM.i2c_scl_hi();
+    i2cSM.i2c_sda_hi();
+    _delay_us( 0);
+  }
+/*
+    uint8_t ackBit = i2cSM.beginTransmission( LSM303D::D_SA0_HIGH_ADDRESS);
+    printEnclosedInt8( "ackBit", ackBit);
+    i2cSM.endTransmission();
+*/  
+/*
+    i2cSM.i2c_scl_hi();
+    i2cSM.i2c_sda_hi();
+    _delay_us( 5);
+
+    i2cSM.i2c_scl_lo();
+    i2cSM.i2c_sda_lo();
+    _delay_us( 5);
+*/
+  
+//    i2cSM.i2c_both_hi();
+//    i2cSM.i2c_sda_hi();
+//    _delay_us( 5);
+
+//  compassD.init(); // LSM303D::device_D, LSM303D::sa0_high);
+//  compassD.enableDefault();
+
+  int found = false;
+  byte data;
+   
+  return;
+/*
+  Serial.println( "Scanning ...");
+
+  // Reading works, as done by these steps...
+  //
+  for (uint8_t address = 0x1e ; address <= 0x1e ; address += 2)
+  {    
+    uint8_t ackBit = 
+      i2cSM.beginTransmission( address, SoftI2CMaster::i2c_rw_bit_is_read);
+      
+    if (ackBit == SoftI2CMaster::i2c_nak)
+      continue;
+
+    found = true;
+
+    Serial.print( "Answer received from: ");
+    Serial.println( address, HEX);
+
+    // We're trying to complete the LSM303D datasheet's Table 14 
+    // protocol, so no need for this:
+    //
+    i2cSM.endTransmission();
+
+return;
+
+    Serial.print( "subAddress is: ");
+    Serial.println( LSM303D::WHO_AM_I, HEX);
+    
+    ackBit = 
+      i2cSM.i2c_writeSubAddress( 
+        LSM303D::WHO_AM_I, SoftI2CMaster::i2c_no_auto_inc_sub);
+
+    if (ackBit == SoftI2CMaster::i2c_ack)
+      Serial.println( "SAK received.");
+    else
+      Serial.println( "No SAK received.");
+  }
+
+  Serial.println( "Done.\n\n");
+*/
 }
 
 char report[80];
 
 void loop()
 {
+    delay(100);
+return;
+  Serial.println( "loop()");
+/*
   compassD.read();
-  runningD_min.x = min( runningD_min.x, compassD.m.x);
-  runningD_min.y = min( runningD_min.y, compassD.m.y);
-  runningD_min.z = min( runningD_min.z, compassD.m.z);
-  runningD_max.x = max( runningD_max.x, compassD.m.x);
-  runningD_max.y = max( runningD_max.y, compassD.m.y);
-  runningD_max.z = max( runningD_max.z, compassD.m.z);
-  snprintf(
-    report, sizeof( report), 
-    "minD:{%+6d, %+6d, %+6d}  maxD:{%+6d, %+6d, %+6d}",
-    (int)runningD_min.x, (int)runningD_min.y, (int)runningD_min.z,
-    (int)runningD_max.x, (int)runningD_max.y, (int)runningD_max.z);
-  Serial.println( report);
-  delay( 100);
- 
-  compass.read();
-  running_min.x = min( running_min.x, compass.m.x);
-  running_min.y = min( running_min.y, compass.m.y);
-  running_min.z = min( running_min.z, compass.m.z);
-  running_max.x = max( running_max.x, compass.m.x);
-  running_max.y = max( running_max.y, compass.m.y);
-  running_max.z = max( running_max.z, compass.m.z);
-  snprintf(
-    report, sizeof( report), 
-    "min:{%+6d, %+6d, %+6d}  max:{%+6d, %+6d, %+6d}\n",
-    (int)running_min.x, (int)running_min.y, (int)running_min.z,
-    (int)running_max.x, (int)running_max.y, (int)running_max.z);
-  Serial.println( report);
-  delay( 100);
+  
+  running_min.x = min( running_min.x, compassD.m.x);
+  running_min.y = min( running_min.y, compassD.m.y);
+  running_min.z = min( running_min.z, compassD.m.z);
 
+  running_max.x = max(running_max.x, compassD.m.x);
+  running_max.y = max(running_max.y, compassD.m.y);
+  running_max.z = max(running_max.z, compassD.m.z);
+  
+  snprintf(
+    report, sizeof(report), 
+    "min:{%+6d, %+6d, %+6d}  max:{%+6d, %+6d, %+6d}",
+    running_min.x, running_min.y, running_min.z,
+    running_max.x, running_max.y, running_max.z);
+  Serial.println( report);
+*/
 }
-// min:{ -8960,  -4023,  -5655}  max:{   +43,  +1573,   -486}
-// min:{ -7749,  -4457,  -3400}  max:{ -3920,  -1183,  -1410}
-//
-// minD:{-11171,  -4518,  -4569}  maxD:{ -1811,   +556,   +986}
-// min: {  -590,   -657,   -525}  max: {  +412,   +513,   +427}
-//
-// minD:{ -3390,  -3139,  -2784}  maxD:{ +3179,  +3122,  +3125}
-// min:{   -617,   -577,   -611}  max:{   +455,   +503,   +353}
