@@ -34,7 +34,7 @@ byte readRegister(uint8_t address)
   data = i2cSM.readLast();
   i2cSM.endTransmission();
   
-  return data;
+  return data;;
 }
 */
 void setup()
