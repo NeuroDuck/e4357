@@ -34,7 +34,7 @@ byte readRegister(uint8_t address)
   data = i2cSM.readLast();
   i2cSM.endTransmission();
   
-  return data;;
+  return data;
 }
 */
 void setup()
@@ -56,11 +56,11 @@ void setup()
 //
 // In other words, the short positive pulse I see after issuing
 // i2cSM.i2c_scl_hi(), may be due to that capacitance bleeding off.
-
+/*
   while (1)
   {
     i2cSM.i2c_sda_lo();
-    _delay_us( 4);    // = 8 uS., As per LSM303D datasheet, Table 7, pg. 14.
+    _delay_us( i2cIntraBitDelayUs);
     i2cSM.i2c_scl_lo();
     _delay_us( 10);
 return;
@@ -68,11 +68,19 @@ return;
     i2cSM.i2c_sda_hi();
     _delay_us( 0);
   }
-/*
-    uint8_t ackBit = i2cSM.beginTransmission( LSM303D::D_SA0_HIGH_ADDRESS);
-    printEnclosedInt8( "ackBit", ackBit);
-    i2cSM.endTransmission();
-*/  
+*/
+    uint8_t ackBit =
+      i2cSM.beginTransmission( 
+//        0b1010101,
+        LSM303D::D_SA0_LOW_ADDRESS,
+        SoftI2CMaster::i2c_rw_bit_is_write);
+
+//    i2cSM.beginTransmission( 
+//        0b0101010, SoftI2CMaster::i2c_rw_bit_is_read);
+
+//    i2cSM.endTransmission();
+
+    printEnclosedBinData( "ackBit", ackBit);
 /*
     i2cSM.i2c_scl_hi();
     i2cSM.i2c_sda_hi();

@@ -12,7 +12,7 @@
  * @param scl GPIO pin to use as I2C SCL
  */
 
-SoftwareI2C::SoftwareI2C(PinName sda, PinName scl) : _sda(sda) , _scl(scl) {
+SoftwareI2C::SoftwareI2C( PinName sda, PinName scl) : _sda(sda) , _scl(scl) {
     _scl.output();
     _scl.mode(OpenDrain);
     _sda.output();

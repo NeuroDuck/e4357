@@ -7,7 +7,6 @@
  *  http://codinglab.blogspot.com/2008/10/i2c-on-avr-using-bit-banging.html
  *
  * 2014, by Testato: update library and examples for follow Wire’s API of Arduino IDE 1.x
- *
  */
 
 #if (ARDUINO >= 100)
@@ -62,8 +61,7 @@ SoftI2CMaster::SoftI2CMaster(
 void SoftI2CMaster::setPins( 
 	uint8_t sclPin, uint8_t sdaPin, 
 	internalNotExternalPullupsType pullups, 
-	sclIsPulledUpOrNotType sclIsPulledUpOrNot
-)
+	sclIsPulledUpOrNotType sclIsPulledUpOrNot)
 {
     uint8_t port;
     
@@ -72,55 +70,56 @@ void SoftI2CMaster::setPins(
 
     _sclPin = sclPin;
     _sdaPin = sdaPin;
-
+/*
 	printEnclosedInt8( "sclPin", sclPin);
 	printEnclosedInt8( "sdaPin", sdaPin);
 	Serial.println( "");
-
+*/
     _sclBitMask = digitalPinToBitMask( sclPin);
 	_sclNotBitMask = ~_sclBitMask;
 
     _sdaBitMask = digitalPinToBitMask( sdaPin);
 	_sdaNotBitMask = ~_sdaBitMask;
-
+/*
 	printEnclosedHexData( "_sclBitMask",    _sclBitMask);
 	printEnclosedHexData( "_sclNotBitMask", _sclNotBitMask);
 	printEnclosedHexData( "_sdaBitMask",    _sdaBitMask);
 	printEnclosedHexData( "_sdaNotBitMask", _sdaNotBitMask);
 	Serial.println( "");
-
+*/
     _sclPort        = digitalPinToPort( sclPin);
-    _sclPortInReg   = portInputRegister( _sclPort);			// I.e., &PINC, x == Toggle Value.
+//    _sclPortInReg   = portInputRegister( _sclPort); Not needed. // I.e., &PINC, x == Toggle Value.
     _sclPortOutReg  = portOutputRegister( _sclPort);		// I.e., &PORTC, x == Output Value.
     _sclDirReg      = portModeRegister( _sclPort);			// I.e., &DDRC, 1 == Output.
-
+/*
 	printEnclosedInt8( "_sclPort", _sclPort);
 	printEnclosedHexData( "_sclPortInReg", (long)_sclPortInReg);
 	printEnclosedHexData( "_sclPortOutReg", (long)_sclPortOutReg);
 	printEnclosedHexData( "_sclDirReg", (long)_sclDirReg);
-
+*/
     _sdaPort        = digitalPinToPort( sdaPin);
     _sdaPortInReg   = portInputRegister( _sdaPort);
     _sdaPortOutReg  = portOutputRegister( _sdaPort);
     _sdaDirReg      = portModeRegister( _sdaPort);
-
+/*
 	printEnclosedInt8( "_sdaPort", _sdaPort);
 	printEnclosedHexData( "_sdaPortInReg", (long)_sdaPortInReg);
 	printEnclosedHexData( "_sdaPortOutReg", (long)_sdaPortOutReg);
 	printEnclosedHexData( "_sdaDirReg", (long)_sdaDirReg);	
+*/
+//	_bothHiDirMask  = ~(_sdaBitMask | _sclBitMask);
+//	_bothHiPortMask =  (_sdaBitMask | _sclBitMask);
 
-	_bothHiDirMask  = ~(_sdaBitMask | _sclBitMask);
-	_bothHiPortMask =  (_sdaBitMask | _sclBitMask);
+//	_bothLoPortMask = ~(_sdaBitMask | _sclBitMask);
+//  _bothLoDirMask  =  (_sdaBitMask | _sclBitMask);
 
-	_bothLoPortMask = ~(_sdaBitMask | _sclBitMask);
-    _bothLoDirMask  =  (_sdaBitMask | _sclBitMask);
-
-    i2c_init();
+	i2c_init();
 }
 
 // Init bitbanging port, must be called before using the functions below.
+// See: "SCL-SDA-init()-LA_screenshot.GIF"
 // private:
-void SoftI2CMaster::i2c_init(void)
+inline void SoftI2CMaster::i2c_init(void)
 {
 	// SDA has to be Input+Pull-Up so the Sensor can drive it.
 	i2c_sda_hi();
@@ -131,22 +130,85 @@ void SoftI2CMaster::i2c_init(void)
 
 	// SCL only needs to be if we want to allow the Sensor to stretch SCL by holding 
 	// it low.
-	i2c_scl_hi();
+	i2c_scl_hi();		// Comes up 3.1uS. after SDA.
 
 	_delay_us( 6);		// Let both lines sit HIGH for ~10 uS. to stabilize.
 }
 
-uint8_t SoftI2CMaster::beginTransmission( uint8_t address)
+uint8_t SoftI2CMaster::endTransmission(void)
 {
-    return beginTransmission( address, i2c_rw_bit_is_write);
+    i2c_stop();
+    //return ret;  // FIXME
+	
+	transmittingInProgress = false;
+
+    return 0;
 }
 
-inline uint8_t shiftInReadNotWriteBit( uint8_t address, SoftI2CMaster::readBitNotWriteBitType readNotWrite)
+// -------------------------
+// For STOP:
+// -------------------------
+// 1. delay, Drop SDA (it may already be LOW).
+// 2. delay, Raise SCL.
+// 3. delay, Raise SDA (tsu(SP) > 4 uS.).
+//
+// -------------------------
+// tw(SP:SR) > 4.7 uS., delay before doing another START.
+// The min. time it takes to get out of endTransmission()
+// and back into beginTransmission() is 11.5uS., 
+// so we're fine here.
+// -------------------------
+//
+inline void SoftI2CMaster::i2c_stop(void)		
 {
-	uint8_t shiftedAddress = address << 1;
-	uint8_t readNotWriteAddress = bitWrite( shiftedAddress, 0, readNotWrite);
+	// 1.								// Ugh, it takes 29uS. to get here,
+//	_delay_us( i2cIntraBitDelayUs);		// so no need for any additional delay.
+	i2c_sda_lo();
+	
+	// 2.
+	_delay_us( i2cIntraBitDelayUs);		// (=4), this takes 8uS., so it's ok for now.
+	i2c_scl_hi();
+	
+	// 3.
+	_delay_us( i2cIntraBitDelayUs);		// (=4), this takes 7.5uS., so it's ok for now.
+	i2c_sda_hi();
+}
 
-	return readNotWriteAddress;
+// -------------------------
+// For Repeated START:
+// -------------------------
+// 1. delay, Raise SDA.
+// 2. delay, Raise SCL.
+// These are in i2c_start():
+// 3. delay, Drop SDA (tsu(SR) > 4.7 uS.).
+// 4. delay, Drop SCL.
+//
+// private:
+inline void SoftI2CMaster::i2c_repstart(void)
+{
+	// 1.
+	_delay_us( i2cIntraBitDelayUs);
+	i2c_sda_hi();
+	
+	// 2.
+	_delay_us( i2cIntraBitDelayUs);
+	i2c_scl_hi();
+	
+	// 3.							// Now we're set up to do another usual START,
+	i2c_start();					// so call it here.
+}
+
+// Send a START Condition
+// private:
+inline void SoftI2CMaster::i2c_start(void)
+{
+    i2c_sda_lo();
+
+	// Wait th(ST) > 4 uS., as per Table 7, pg. 14, in:
+	// e4357\project\Compass\LSM303D-datasheet.pdf.  We're aiming for ~8 uS.
+    _delay_us( i2cIntraBitDelayUs);
+
+    i2c_scl_lo();
 }
 
 // Send:
@@ -157,109 +219,132 @@ inline uint8_t shiftInReadNotWriteBit( uint8_t address, SoftI2CMaster::readBitNo
 // Usage:
 //	ackBitReturned = beginTransmission( address, i2c_rw_bit_is_write);
 //  if (ackBitReturned != i2c_ack) { print "NAK"; return; }
-//	
-// 
+//
 uint8_t SoftI2CMaster::beginTransmission( 
 	uint8_t address, readBitNotWriteBitType readNotWrite)
 {
-    i2c_start();
+	if (transmittingInProgress)
+	{
+		i2c_repstart();
+		return 0;
+	}
+	else
+	{
+		transmittingInProgress = true;
+		i2c_start();
+	}
 	
-	return SoftI2CMaster::i2c_nak;	// Just for Logic Analyzer.
+	uint8_t readNotWriteAddress = 
+		shiftInReadNotWriteBit( address, readNotWrite);
 
-	uint8_t readNotWriteAddress = shiftInReadNotWriteBit( address, readNotWrite);
-	
-	Serial.print( "Writing to: 0x");
-	Serial.println( readNotWriteAddress, HEX);
-	
-	transmittingInProgress = true;
-	
     return i2c_write( readNotWriteAddress);
 }
 
-// Send a START Condition
-// private:
-void SoftI2CMaster::i2c_start(void)
+inline uint8_t SoftI2CMaster::shiftInReadNotWriteBit( 
+	uint8_t address, readBitNotWriteBitType readNotWrite)
 {
-	i2c_init();
+	uint8_t shiftedAddress = address << 1;
+	uint8_t readNotWriteAddress = bitWrite( shiftedAddress, 0, readNotWrite);
 
-    i2c_sda_lo();
-
-	// Wait th(ST) uS., as per Table 7, pg. 14, in:
-	// e4357\project\Compass\LSM303D-datasheet.pdf.
-    _delay_us( 10);
-
-    i2c_scl_lo();
-
-    _delay_us( I2CSETTLINGTIME);			// Give things time to settle.
+	return readNotWriteAddress;
 }
 
-inline uint8_t setSubAdrAutoIncBit( 
-	uint8_t address, SoftI2CMaster::autoIncSubAdrBitType autoIncSubAdr)
+inline uint8_t SoftI2CMaster::setSubAdrAutoIncBit( 
+	uint8_t address, autoIncSubAdrBitType autoIncSubAdr)
 {
 	uint8_t addressWithAutoIncSubAdrBit = bitWrite( address, 7, autoIncSubAdr);
 
 	return addressWithAutoIncSubAdrBit;
 }
 
-uint8_t SoftI2CMaster::i2c_writeSubAddress( 
+inline uint8_t SoftI2CMaster::i2c_writeSubAddress( 
 	uint8_t subAddress, autoIncSubAdrBitType autoIncSubAdr)
 {
 	uint8_t addressWithAutoIncSubAdrBit = 
 		setSubAdrAutoIncBit( subAddress, autoIncSubAdr);
-		
+/*
 	Serial.print( "Writing to subAddress: ");
 	Serial.println( addressWithAutoIncSubAdrBit, HEX);
-
+*/
 	i2c_write( addressWithAutoIncSubAdrBit);
 }
 
-// write a byte to the I2C slave device
 // private:
-uint8_t SoftI2CMaster::i2c_write( uint8_t c)
-{
-    for (uint8_t i = 0 ; i < 8 ; i++)
-	{
-        i2c_writebit( c & 0x80);
-        c <<= 1;
-    }
-
-    return i2c_readbit();
-}
-
-// private:
-void SoftI2CMaster::i2c_writebit( uint8_t c)
-{
-    if (c > 0) 
-        i2c_sda_hi();
-	else
-        i2c_sda_lo();
-
-    i2c_scl_hi();				// Why spike it up high-then-back-to-low?
-    _delay_us( i2cbitdelay);
-
-    i2c_scl_lo();
-    _delay_us( i2cbitdelay);
-
-    if (c > 0)
-        i2c_sda_lo();
-   
-    _delay_us( i2cbitdelay);
-}
-
-// private:
-uint8_t SoftI2CMaster::i2c_readbit(void)
+inline uint8_t SoftI2CMaster::i2c_readbit(void)
 {
     i2c_sda_hi();
     i2c_scl_hi();
-    _delay_us( i2cbitdelay);
 
-    volatile uint8_t* pinReg = portInputRegister( _sdaPort);
-    uint8_t c = *pinReg;  // I2C_PIN;
+    uint8_t c = *_sdaPortInReg;		// Did our Sensor ACK us? (0 == ACK, 1 == NACK).
 
     i2c_scl_lo();
     _delay_us( i2cbitdelay);
 
     return (c & _sdaBitMask) ? i2c_nak : i2c_ack;
+}
+
+// Write a byte to the I2C slave device.
+// As this point, we've already called i2c_start(), meaning that SDA went LOW first,
+// followed by SCL going LOW, which we've just returned from doing, just before 
+// coming here.
+//
+// private:
+inline uint8_t SoftI2CMaster::i2c_write( uint8_t c)
+{
+    for (uint8_t i = 0 ; i < 8 ; i++)
+	{
+        i2c_writebit( c & 0x80);
+        c <<= 1;		
+    }
+
+    return i2c_readbit();
+}
+
+// We've identified i2cIntraBitDelayUs as the amount, prior to moving on to doing the 
+// next step.  Each "d" below represents a i2cIntraBitDelayUs period.
+//
+// I.e., we're enterning here with both SDA & SCL LOW, so let's leave things as we found them.
+// Along the way, delay i2cIntraBitDelayUs before doing each of these next steps:
+// SDA:_7777
+//     ddddd
+// SCL:__^^_
+//     1234
+//
+// To get from beginTransmission()->i2c_start() into:
+//	  beginTransmission()->i2c_write()->i2c_writebit()
+// takes 8.4uS., so there's no need for bit#7's delay #1. below.
+// The following bits may need it though.  Bit #6 appears 4.0uS. before SCL->HIGH,
+// which is lots of time in advance of the 250nS. when it's needed to appear.
+//
+// The transition between sda_write_hi() to sda_write_lo() is 3.3uS. in both dirs.
+//
+// private:
+inline void SoftI2CMaster::i2c_writebit( uint8_t c)
+{
+	// 1.
+//    _delay_us( i2cIntraBitDelayUs);
+    if (c > 0)
+        i2c_sda_hi();
+	else
+        i2c_sda_lo();
+
+	// 2.
+//    _delay_us( i2cIntraBitDelayUs);	// It's 5uS. later without this, 
+    i2c_scl_hi();						// so no need for a delay here.
+
+	// 3. Delay, then do nothing, as described above.
+//    _delay_us( i2cIntraBitDelayUs * 1);	// i2cIntraBitDelayUs=4 * 1 gives 8.2uS., so good. 
+	
+	// 4.
+    // _delay_us( i2cIntraBitDelayUs);  // Done in #3 just above.
+    i2c_scl_lo();
+	
+	// Here is a problem.  The LSM303D datasheet says in its Table 7, pg. 14,
+	// that th(SDA) (= holding time between SCL->LOW and the next SDA bit,
+	// should be < 3.45uS.
+	// And with the current implementation, it is 5.8uS.
+	// For the moment, we'll see if the LSM303D can stomach that, and if not,
+	// we'll try to tighten up the i2c_write()->i2c_writebit() loop.
 }
 
 uint8_t SoftI2CMaster::requestFrom( int address)
@@ -388,16 +473,6 @@ uint8_t SoftI2CMaster::read( uint8_t address, uint8_t numberBytes)
   return returnStatus;
 }
 
-uint8_t SoftI2CMaster::endTransmission(void)
-{
-    i2c_stop();
-    //return ret;  // FIXME
-	
-	transmittingInProgress = false;
-
-    return 0;
-}
-
 // must be called in:
 // slave tx event callback
 // or after beginTransmission(address)
@@ -438,38 +513,6 @@ void SoftI2CMaster::write( int data)
 }
 
 //--------------------------------------------------------------------
-
-// private:
-void SoftI2CMaster::i2c_repstart(void)
-{
-    // Set both to high at the same time (releases drive on both lines).
-	//
-	i2c_sda_hi();
-    i2c_scl_hi();
-
-    i2c_scl_lo();                           // force SCL low
-    _delay_us( i2cbitdelay);
-
-    i2c_sda_release();                      // release SDA
-    _delay_us( i2cbitdelay);
-
-    i2c_scl_release();                      // release SCL
-    _delay_us( i2cbitdelay);
-
-    i2c_sda_lo();                           // force SDA low
-    _delay_us( i2cbitdelay);
-}
-
-// Send a STOP Condition
-//
-void SoftI2CMaster::i2c_stop(void)
-{
-    i2c_scl_hi();
-    _delay_us( i2cbitdelay);
-
-    i2c_sda_hi();
-    _delay_us( i2cbitdelay);
-}
 
 // read a byte from the I2C slave device
 // private:

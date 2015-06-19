@@ -9,7 +9,7 @@ void printEnclosedData( char* desc, char* s)
     Serial.println( "<");
 }
 
-void printEnclosedBinData( char* desc, byte b)
+void printEnclosedBinData( char const* desc, byte b)
 {
     Serial.print( desc);
     Serial.print( " = >0b");

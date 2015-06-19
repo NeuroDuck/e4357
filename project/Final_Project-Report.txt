@@ -1618,6 +1618,20 @@ Hopefully now I know enough to implement these functions:
 
 in one of the SoftwareI2C libraries which lack them.  Stay tuned.
 
+Update:
+------
+
+I did a teardown of the "e4357\project\libraries-Arduino\SoftI2CMaster" library, and 
+have been re-writing it while checking each function's output in my Logic Analyzer.
+
+See the newly added annotated Logic Analyzer screenshots in this directory:
+
+	e4357\project\Compass
 	
+which show correct ACK's and NACK's being received from the LSM303D Compass.
+
+I'll add more screenshots as I progress with reading actual data from it.
+
+
 Results/Solutions:
 -----------------

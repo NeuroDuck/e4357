@@ -1,14 +1,12 @@
-// #include <SoftI2CMaster.h>
-#include <Wire.h>
+#include <SoftI2CMaster.h>
+// #include <Wire.h>
 #include <LSM303D.h>
 #include <math.h>
 
 // Defines ////////////////////////////////////////////////////////////////
 
 // The Arduino two-wire interface uses a 7-bit number for the address,
-// and sets the last bit correctly based on reads and writes
-#define D_SA0_HIGH_ADDRESS                0b0011101
-#define D_SA0_LOW_ADDRESS                 0b0011110
+// and sets the last bit correctly based on reads and writes.
 #define DLHC_DLM_DLH_MAG_ADDRESS          0b0011110
 #define DLHC_DLM_DLH_ACC_SA0_HIGH_ADDRESS 0b0011001
 #define DLM_DLH_ACC_SA0_LOW_ADDRESS       0b0011000
@@ -21,9 +19,9 @@
 // Constructors ////////////////////////////////////////////////////////////////
 
 // So we can use the SoftI2CMaster library instead of the Wire one.
-//
-// extern SoftI2CMaster i2c;
-// #define Wire i2c
+
+extern SoftI2CMaster i2cSM;
+#define Wire i2cSM
 
 LSM303D::LSM303D( void)
 {
@@ -51,7 +49,7 @@ bool LSM303D::timeoutOccurred()
   return tmp;
 }
 
-void LSM303D::setTimeout(unsigned int timeout)
+void LSM303D::setTimeout( unsigned int timeout)
 {
   io_timeout = timeout;
 }
@@ -61,7 +59,7 @@ unsigned int LSM303D::getTimeout()
   return io_timeout;
 }
 
-bool LSM303D::init(deviceType device, sa0State sa0)
+bool LSM303D::init( deviceType device, sa0State sa0)
 {
   Serial.println( "init()1");
 
@@ -73,8 +71,11 @@ Serial.println( "2");
     if (device == device_auto || device == device_D)
     {
 Serial.println( "3");
-      // check SA0 high address unless SA0 was specified to be low
-      if (sa0 != sa0_low && testReg(D_SA0_HIGH_ADDRESS, WHO_AM_I) == D_WHO_ID)
+      // check SA0 high address unless SA0 was specified to be low.
+	  testReg( D_SA0_HIGH_ADDRESS, WHO_AM_I);
+	  return false;
+
+      if (sa0 != sa0_low && testReg( D_SA0_HIGH_ADDRESS, WHO_AM_I) == D_WHO_ID)
       {
 Serial.println( "4");
         // device responds to address 0011101 with D ID; it's a D with SA0 high
@@ -139,12 +140,7 @@ Serial.println( "20");
       }
 Serial.println( "21");
     }
-	
-	Serial.print( "device = ");
-	Serial.print( device);
-	Serial.print( "  sa0 = ");
-	Serial.println( sa0);	
-    
+
     // make sure device and SA0 were successfully detected; otherwise, indicate failure
     if (device == device_auto || sa0 == sa0_auto)
     {
@@ -160,6 +156,11 @@ Serial.println( "21");
   
   _device = device;
   
+  Serial.print( "device = ");
+  Serial.print( device);
+  Serial.print( "  sa0 = ");
+  Serial.println( sa0);
+
   // set device addresses and translated register addresses
   switch (device)
   {
@@ -229,27 +230,27 @@ void LSM303D::enableDefault(void)
   {
     // Accelerometer
 
-    // 0x00 = 0b00000000
+    // 0x00 = 0b00000000		// See pg. 37.
     // AFS = 0 (+/- 2 g full scale)
-    writeReg(CTRL2, 0x00);
+    writeReg( CTRL2, 0x00);
 
-    // 0x57 = 0b01010111
-    // AODR = 0101 (50 Hz ODR); AZEN = AYEN = AXEN = 1 (all axes enabled)
-    writeReg(CTRL1, 0x57);
+    // 0x57 = 0b01010111		// See pg. 36.
+    // AODR = 0101 (50 Hz ODR); AZEN = AYEN = AXEN = 1 (all axes enabled).
+    writeReg( CTRL1, 0x57);
 
     // Magnetometer
 
-    // 0x64 = 0b01100100
+    // 0x64 = 0b01100100		// See pg. 39.
     // M_RES = 11 (high resolution mode); M_ODR = 001 (6.25 Hz ODR)
-    writeReg(CTRL5, 0x64);
+    writeReg( CTRL5, 0x64);
 
-    // 0x20 = 0b00100000
+    // 0x20 = 0b00100000		// See pg. 40.
     // MFS = 01 (+/- 4 gauss full scale)
-    writeReg(CTRL6, 0x20);
+    writeReg( CTRL6, 0x20);
 
-    // 0x00 = 0b00000000
+    // 0x00 = 0b00000000		// See pg. 40.
     // MLP = 0 (low power mode off); MD = 00 (continuous-conversion mode)
-    writeReg(CTRL7, 0x00);
+    writeReg( CTRL7, 0x00);
   }
   else
   {
@@ -259,57 +260,57 @@ void LSM303D::enableDefault(void)
     {
       // 0x08 = 0b00001000
       // FS = 00 (+/- 2 g full scale); HR = 1 (high resolution enable)
-      writeAccReg(CTRL_REG4_A, 0x08);
+      writeAccReg( CTRL_REG4_A, 0x08);
 
       // 0x47 = 0b01000111
       // ODR = 0100 (50 Hz ODR); LPen = 0 (normal mode); Zen = Yen = Xen = 1 (all axes enabled)
-      writeAccReg(CTRL_REG1_A, 0x47);
+      writeAccReg( CTRL_REG1_A, 0x47);
     }
     else // DLM, DLH
     {
       // 0x00 = 0b00000000
       // FS = 00 (+/- 2 g full scale)
-      writeAccReg(CTRL_REG4_A, 0x00);
+      writeAccReg( CTRL_REG4_A, 0x00);
 
       // 0x27 = 0b00100111
       // PM = 001 (normal mode); DR = 00 (50 Hz ODR); Zen = Yen = Xen = 1 (all axes enabled)
-      writeAccReg(CTRL_REG1_A, 0x27);
+      writeAccReg( CTRL_REG1_A, 0x27);
     }
 
     // Magnetometer
 
     // 0x0C = 0b00001100
     // DO = 011 (7.5 Hz ODR)
-    writeMagReg(CRA_REG_M, 0x0C);
+    writeMagReg( CRA_REG_M, 0x0C);
 
     // 0x20 = 0b00100000
     // GN = 001 (+/- 1.3 gauss full scale)
-    writeMagReg(CRB_REG_M, 0x20);
+    writeMagReg( CRB_REG_M, 0x20);
 
     // 0x00 = 0b00000000
     // MD = 00 (continuous-conversion mode)
-    writeMagReg(MR_REG_M, 0x00);
+    writeMagReg( MR_REG_M, 0x00);
   }
 }
 
 // Writes an accelerometer register
-void LSM303D::writeAccReg(byte reg, byte value)
+void LSM303D::writeAccReg( uint8_t reg, byte value)
 {
-  Wire.beginTransmission(acc_address);
-  Wire.write(reg);
-  Wire.write(value);
+  Wire.beginTransmission( acc_address);
+  Wire.write( reg);
+  Wire.write( value);
   last_status = Wire.endTransmission();
 }
 
 // Reads an accelerometer register
-byte LSM303D::readAccReg(byte reg)
+byte LSM303D::readAccReg( uint8_t reg)
 {
   byte value;
 
-  Wire.beginTransmission(acc_address);
-  Wire.write(reg);
+  Wire.beginTransmission( acc_address);
+  Wire.write( reg);
   last_status = Wire.endTransmission();
-  Wire.requestFrom(acc_address, (byte)1);
+  Wire.requestFrom( acc_address, (byte)1);
   value = Wire.read();
   Wire.endTransmission();
 
@@ -317,16 +318,16 @@ byte LSM303D::readAccReg(byte reg)
 }
 
 // Writes a magnetometer register
-void LSM303D::writeMagReg(byte reg, byte value)
+void LSM303D::writeMagReg( uint8_t reg, byte value)
 {
-  Wire.beginTransmission(mag_address);
-  Wire.write(reg);
-  Wire.write(value);
+  Wire.beginTransmission( mag_address);
+  Wire.write( reg);
+  Wire.write( value);
   last_status = Wire.endTransmission();
 }
 
 // Reads a magnetometer register
-byte LSM303D::readMagReg(int reg)
+byte LSM303D::readMagReg( uint8_t reg)
 {
   byte value;
 
@@ -336,57 +337,63 @@ byte LSM303D::readMagReg(int reg)
     reg = translated_regs[-reg];
   }
 
-  Wire.beginTransmission(mag_address);
-  Wire.write(reg);
+  Wire.beginTransmission( mag_address);
+  Wire.write( reg);
   last_status = Wire.endTransmission();
-  Wire.requestFrom(mag_address, (byte)1);
+  Wire.requestFrom( mag_address, (byte)1);
   value = Wire.read();
   Wire.endTransmission();
 
   return value;
 }
 
-void LSM303D::writeReg(byte reg, byte value)
+void LSM303D::writeReg( uint8_t reg, byte value)
 {
   // mag address == acc_address for LSM303D, so it doesn't really matter which one we use.
   if (_device == device_D || reg < CTRL_REG1_A)
   {
-    writeMagReg(reg, value);
+    writeMagReg( reg, value);
   }
   else
   {
-    writeAccReg(reg, value);
+    writeAccReg( reg, value);
   }
 }
 
 // Note that this function will not work for reading TEMP_OUT_H_M and TEMP_OUT_L_M on the DLHC.
 // To read those two registers, use readMagReg() instead.
-byte LSM303D::readReg(int reg)
+byte LSM303D::readReg( uint8_t reg)
 {
   // mag address == acc_address for LSM303D, so it doesn't really matter which one we use.
   // Use readMagReg so it can translate OUT_[XYZ]_[HL]_M
   if (_device == device_D || reg < CTRL_REG1_A)
   {
-    return readMagReg(reg);
+    return readMagReg( reg);
   }
   else
   {
-    return readAccReg(reg);
+    return readAccReg( reg);
   }
 }
 
-// Reads the 3 accelerometer channels and stores them in vector a
+// Reads the 3 accelerometer channels and stores them in vector a.
 void LSM303D::readAcc(void)
 {
-  Wire.beginTransmission(acc_address);
+  Wire.beginTransmission( acc_address);
+  
   // assert the MSB of the address to get the accelerometer
   // to do slave-transmit subaddress updating.
-  Wire.write(OUT_X_L_A | (1 << 7));
+  //
+  Wire.write( OUT_X_L_A | (1 << 7));
+
   last_status = Wire.endTransmission();
-  Wire.requestFrom(acc_address, (byte)6);
+
+  Wire.requestFrom( acc_address, (byte)6);
 
   unsigned int millis_start = millis();
-  while (Wire.available() < 6) {
+  
+  while (Wire.available() < 6) 
+  {
     if (io_timeout > 0 && ((unsigned int)millis() - millis_start) > io_timeout)
     {
       did_timeout = true;
@@ -403,8 +410,9 @@ void LSM303D::readAcc(void)
   byte zha = Wire.read();
 
   // combine high and low bytes
-  // This no longer drops the lowest 4 bits of the readings from the DLH/DLM/DLHC, which are always 0
-  // (12-bit resolution, left-aligned). The D has 16-bit resolution
+  // This no longer drops the lowest 4 bits of the readings from the DLH/DLM/DLHC, 
+  // which are always 0 (12-bit resolution, left-aligned). The D has 16-bit resolution.
+  //
   a.x = (int16_t)(xha << 8 | xla);
   a.y = (int16_t)(yha << 8 | yla);
   a.z = (int16_t)(zha << 8 | zla);
@@ -422,15 +430,24 @@ void LSM303D::readAcc(void)
 // Reads the 3 magnetometer channels and stores them in vector m
 void LSM303D::readMag(void)
 {
-  Wire.beginTransmission(mag_address);
+  Wire.beginTransmission( mag_address);
+
   // If LSM303D, assert MSB to enable subaddress updating
-  // OUT_X_L_M comes first on D, OUT_X_H_M on others
-  Wire.write((_device == device_D) ? translated_regs[-OUT_X_L_M] | (1 << 7) : translated_regs[-OUT_X_H_M]);
+  // OUT_X_L_M comes first on D, OUT_X_H_M on others.
+  //
+  Wire.write(
+	(_device == device_D) ? 
+		translated_regs[-OUT_X_L_M] | (1 << 7) : 
+		translated_regs[-OUT_X_H_M]);
+
   last_status = Wire.endTransmission();
+
   Wire.requestFrom(mag_address, (byte)6);
 
   unsigned int millis_start = millis();
-  while (Wire.available() < 6) {
+
+  while (Wire.available() < 6) 
+  {
     if (io_timeout > 0 && ((unsigned int)millis() - millis_start) > io_timeout)
     {
       did_timeout = true;
@@ -527,21 +544,55 @@ void LSM303D::vector_normalize(vector<float> *a)
 
 // Private Methods //////////////////////////////////////////////////////////////
 
-int LSM303D::testReg(byte address, regAddr reg)
+uint8_t printAndReturnIfNAK( uint8_t ackResult, const char* msg)
 {
-Serial.println( "a");
-  Wire.beginTransmission(address);
-Serial.println( "b");
-  Wire.write((byte)reg);
-Serial.println( "c");
-  if (Wire.endTransmission() != 0)
+  if (msg != 0 && msg[0] != '\0')
+	Serial.print( msg);
+
+  if (ackResult == SoftI2CMaster::i2c_ack)
+	Serial.println( "ACK received.");
+  else
   {
+	Serial.println( "NACK received.");
+  }
+
+  return ackResult;
+}
+
+int LSM303D::testReg( uint8_t address, regAddr reg)
+{
+  Serial.print( "a: ");
+
+  uint8_t ackResult = Wire.beginTransmission( address);
+
+  if (printAndReturnIfNAK( ackResult, "a: ") == SoftI2CMaster::i2c_nak)
+	return ackResult;
+
+  Serial.println( "b: ");
+  
+// vvvv Uncomment me vvv.
+//  ackResult = Wire.i2c_writeSubAddress( reg, SoftI2CMaster::i2c_no_auto_inc_sub);
+
+  if (printAndReturnIfNAK( ackResult, "b: ") == SoftI2CMaster::i2c_nak)
+	return ackResult;  
+
+//  Serial.print( "c: ");
+//  Serial.println( Wire.readLast());
+
+  Serial.print( "d: ");
+  Serial.println( Wire.endTransmission());
+
+return 0;
+  
+Serial.println( "c");
+  if (Wire.endTransmission() != 0)  // <== Do repeated start here.
+  {					//	Add a sI2Cm wrapper around SoftI2CMaster::i2c_repstart()?
 Serial.println( "d");
-    return TEST_REG_ERROR;
+    return TEST_REG_ERROR;		// What can cause this to happen?
   }
 Serial.println( "e");
 
-  Wire.requestFrom(address, (byte)1);
+  Wire.requestFrom( address, (byte)1);	//	<== Continue debugging from here.
 Serial.println( "f");
 
   if (Wire.available())

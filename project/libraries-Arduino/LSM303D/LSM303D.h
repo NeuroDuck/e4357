@@ -13,6 +13,12 @@ class LSM303D
 
     enum deviceType { device_DLH, device_DLM, device_DLHC, device_D, device_auto };
     enum sa0State { sa0_low, sa0_high, sa0_auto };
+	
+	enum devaddr 
+	{
+	  D_SA0_HIGH_ADDRESS = 0x1D,
+	  D_SA0_LOW_ADDRESS  = 0x1E
+	};
 
     // register addresses
     enum regAddr
@@ -168,39 +174,39 @@ class LSM303D
 
     LSM303D(void);
 
-    bool init(deviceType device = device_auto, sa0State sa0 = sa0_auto);
+    bool init( deviceType device = device_auto, sa0State sa0 = sa0_auto);
     deviceType getDeviceType(void) { return _device; }
 
     void enableDefault(void);
 
-    void writeAccReg(byte reg, byte value);
-    byte readAccReg(byte reg);
-    void writeMagReg(byte reg, byte value);
-    byte readMagReg(int reg);
+    void writeAccReg( uint8_t reg, byte value);
+    byte readAccReg( uint8_t reg);
+    void writeMagReg( uint8_t reg, byte value);
+    byte readMagReg( uint8_t reg);
 
-    void writeReg(byte reg, byte value);
-    byte readReg(int reg);
+    void writeReg( uint8_t reg, byte value);
+    byte readReg( uint8_t reg);
 
     void readAcc(void);
     void readMag(void);
     void read(void);
 
-    void setTimeout(unsigned int timeout);
+    void setTimeout( unsigned int timeout);
     unsigned int getTimeout(void);
     bool timeoutOccurred(void);
 
     float heading(void);
-    template <typename T> float heading(vector<T> from);
+    template <typename T> float heading( vector<T> from);
 
     // vector functions
     template <typename Ta, typename Tb, typename To> static void vector_cross(const vector<Ta> *a, const vector<Tb> *b, vector<To> *out);
     template <typename Ta, typename Tb> static float vector_dot(const vector<Ta> *a, const vector<Tb> *b);
-    static void vector_normalize(vector<float> *a);
+    static void vector_normalize( vector<float> *a);
 
   private:
     deviceType _device; // chip type (D, DLHC, DLM, or DLH)
-    byte acc_address;
-    byte mag_address;
+    uint8_t acc_address;
+    uint8_t mag_address;
 
     static const int dummy_reg_count = 6;
     regAddr translated_regs[dummy_reg_count + 1]; // index 0 not used
@@ -208,7 +214,7 @@ class LSM303D
     unsigned int io_timeout;
     bool did_timeout;
 
-    int testReg(byte address, regAddr reg);
+    int testReg( uint8_t address, regAddr reg);
 };
 
 /*
@@ -224,7 +230,7 @@ form a basis for the horizontal plane. The From vector is projected
 into the horizontal plane and the angle between the projected vector
 and horizontal north is returned.
 */
-template <typename T> float LSM303D::heading(vector<T> from)
+template <typename T> float LSM303D::heading( vector<T> from)
 {
     vector<int32_t> temp_m = {m.x, m.y, m.z};
 
@@ -236,25 +242,28 @@ template <typename T> float LSM303D::heading(vector<T> from)
     // compute E and N
     vector<float> E;
     vector<float> N;
-    vector_cross(&temp_m, &a, &E);
-    vector_normalize(&E);
-    vector_cross(&a, &E, &N);
-    vector_normalize(&N);
+    vector_cross( &temp_m, &a, &E);
+    vector_normalize( &E);
+    vector_cross( &a, &E, &N);
+    vector_normalize( &N);
 
     // compute heading
-    float heading = atan2(vector_dot(&E, &from), vector_dot(&N, &from)) * 180 / M_PI;
-    if (heading < 0) heading += 360;
+    float heading = atan2( vector_dot( &E, &from), vector_dot( &N, &from)) * 180 / M_PI;
+
+    if (heading < 0) 
+		heading += 360;
+
     return heading;
 }
 
-template <typename Ta, typename Tb, typename To> void LSM303D::vector_cross(const vector<Ta> *a, const vector<Tb> *b, vector<To> *out)
+template <typename Ta, typename Tb, typename To> void LSM303D::vector_cross( const vector<Ta> *a, const vector<Tb> *b, vector<To> *out)
 {
   out->x = (a->y * b->z) - (a->z * b->y);
   out->y = (a->z * b->x) - (a->x * b->z);
   out->z = (a->x * b->y) - (a->y * b->x);
 }
 
-template <typename Ta, typename Tb> float LSM303D::vector_dot(const vector<Ta> *a, const vector<Tb> *b)
+template <typename Ta, typename Tb> float LSM303D::vector_dot( const vector<Ta> *a, const vector<Tb> *b)
 {
   return (a->x * b->x) + (a->y * b->y) + (a->z * b->z);
 }
