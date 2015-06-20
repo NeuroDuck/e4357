@@ -21,28 +21,12 @@
 #include <util/delay.h>
 #include <string.h>
 
-#define i2cbitdelay 1
-
 uint8_t SoftI2CMaster::bytesAvailable = 0;
 uint8_t SoftI2CMaster::bufferIndex    = 0;
 uint8_t SoftI2CMaster::totalBytes     = 0;
 
 // Constructor
 //
-SoftI2CMaster::SoftI2CMaster()
-{
-    // do nothing, use setPins() later.
-}
-
-SoftI2CMaster::SoftI2CMaster( uint8_t sclPin, uint8_t sdaPin)
-{
-	SoftI2CMaster( 
-		sclPin, sdaPin, 
-		SoftI2CMaster::i2c_internal_pullups,
-		SoftI2CMaster::i2c_scl_pulled_up
-	);
-}
-
 SoftI2CMaster::SoftI2CMaster( 
 	uint8_t sclPin, uint8_t sdaPin, 
 	internalNotExternalPullupsType pullups,
@@ -107,17 +91,12 @@ void SoftI2CMaster::setPins(
 	printEnclosedHexData( "_sdaPortOutReg", (long)_sdaPortOutReg);
 	printEnclosedHexData( "_sdaDirReg", (long)_sdaDirReg);	
 */
-//	_bothHiDirMask  = ~(_sdaBitMask | _sclBitMask);
-//	_bothHiPortMask =  (_sdaBitMask | _sclBitMask);
-
-//	_bothLoPortMask = ~(_sdaBitMask | _sclBitMask);
-//  _bothLoDirMask  =  (_sdaBitMask | _sclBitMask);
-
 	i2c_init();
 }
 
 // Init bitbanging port, must be called before using the functions below.
-// See: "SCL-SDA-init()-LA_screenshot.GIF"
+// See: "SCL-SDA-init()-LA_screenshot.gif".
+//
 // private:
 inline void SoftI2CMaster::i2c_init(void)
 {
@@ -135,14 +114,12 @@ inline void SoftI2CMaster::i2c_init(void)
 	_delay_us( 6);		// Let both lines sit HIGH for ~10 uS. to stabilize.
 }
 
-uint8_t SoftI2CMaster::endTransmission(void)
+void SoftI2CMaster::endTransmission(void)
 {
     i2c_stop();
     //return ret;  // FIXME
 	
 	transmittingInProgress = false;
-
-    return 0;
 }
 
 // -------------------------
@@ -186,9 +163,9 @@ inline void SoftI2CMaster::i2c_stop(void)
 // private:
 inline void SoftI2CMaster::i2c_repstart(void)
 {
-	// 1.
-	_delay_us( i2cIntraBitDelayUs);
-	i2c_sda_hi();
+	// 1.							// Already done.  Prepare to
+//	_delay_us( i2cIntraBitDelayUs);	// receive the Sensor's ACK.
+//	i2c_sda_hi();
 	
 	// 2.
 	_delay_us( i2cIntraBitDelayUs);
@@ -217,17 +194,14 @@ inline void SoftI2CMaster::i2c_start(void)
 //	SAK
 //
 // Usage:
-//	ackBitReturned = beginTransmission( address, i2c_rw_bit_is_write);
+//	ackBitReturned = beginTransmission( address, SoftI2CMaster::i2c_rw_bit_is_write);
 //  if (ackBitReturned != i2c_ack) { print "NAK"; return; }
 //
-uint8_t SoftI2CMaster::beginTransmission( 
+SoftI2CMaster::ackNotNackType SoftI2CMaster::beginTransmission( 
 	uint8_t address, readBitNotWriteBitType readNotWrite)
 {
 	if (transmittingInProgress)
-	{
 		i2c_repstart();
-		return 0;
-	}
 	else
 	{
 		transmittingInProgress = true;
@@ -249,6 +223,16 @@ inline uint8_t SoftI2CMaster::shiftInReadNotWriteBit(
 	return readNotWriteAddress;
 }
 
+SoftI2CMaster::ackNotNackType SoftI2CMaster::i2c_writeSubAddress( 
+	uint8_t subAddress, autoIncSubAdrBitType autoIncSubAdr)
+{
+	uint8_t addressWithAutoIncSubAdrBit = 
+		setSubAdrAutoIncBit( subAddress, autoIncSubAdr);
+
+	return i2c_write( addressWithAutoIncSubAdrBit);
+}
+
+// private:
 inline uint8_t SoftI2CMaster::setSubAdrAutoIncBit( 
 	uint8_t address, autoIncSubAdrBitType autoIncSubAdr)
 {
@@ -257,30 +241,41 @@ inline uint8_t SoftI2CMaster::setSubAdrAutoIncBit(
 	return addressWithAutoIncSubAdrBit;
 }
 
-inline uint8_t SoftI2CMaster::i2c_writeSubAddress( 
-	uint8_t subAddress, autoIncSubAdrBitType autoIncSubAdr)
+// private:
+inline SoftI2CMaster::ackNotNackType SoftI2CMaster::i2c_readbit(void)
 {
-	uint8_t addressWithAutoIncSubAdrBit = 
-		setSubAdrAutoIncBit( subAddress, autoIncSubAdr);
-/*
-	Serial.print( "Writing to subAddress: ");
-	Serial.println( addressWithAutoIncSubAdrBit, HEX);
-*/
-	i2c_write( addressWithAutoIncSubAdrBit);
+	// Let SDA float (w/our Pull-Up enabled), so we can receive the Sensor's data.
+	i2c_sda_hi();	
+
+	// Tell the Sensor we are ready to read the next bit of its data now.
+    i2c_scl_hi();
+
+	// Oh boy, what did we receive?
+    uint8_t c = *_sdaPortInReg;		// Did our Sensor ACK us? (0 == ACK, 1 == NACK).
+
+	// Tell the Sensor that it's ok to clock out the next bit of its data now.
+    i2c_scl_lo();					
+
+    return (c & _sdaBitMask) ? i2c_nak : i2c_ack;
 }
 
 // private:
-inline uint8_t SoftI2CMaster::i2c_readbit(void)
+uint8_t SoftI2CMaster::i2c_read( ackNotNackType ack)
 {
-    i2c_sda_hi();
-    i2c_scl_hi();
+    uint8_t res = 0;
+	
+    for (uint8_t i = 0 ; i < 8 ; i++) 
+	{
+        res <<= 1;
+        res |= i2c_readbit();  
+    }
 
-    uint8_t c = *_sdaPortInReg;		// Did our Sensor ACK us? (0 == ACK, 1 == NACK).
+    if (ack)
+        i2c_sda_lo();
+    else
+        i2c_sda_hi();
 
-    i2c_scl_lo();
-    _delay_us( i2cbitdelay);
-
-    return (c & _sdaBitMask) ? i2c_nak : i2c_ack;
+    return res;
 }
 
 // Write a byte to the I2C slave device.
@@ -289,7 +284,7 @@ inline uint8_t SoftI2CMaster::i2c_readbit(void)
 // coming here.
 //
 // private:
-inline uint8_t SoftI2CMaster::i2c_write( uint8_t c)
+inline SoftI2CMaster::ackNotNackType SoftI2CMaster::i2c_write( uint8_t c)
 {
     for (uint8_t i = 0 ; i < 8 ; i++)
 	{
@@ -333,6 +328,7 @@ inline void SoftI2CMaster::i2c_writebit( uint8_t c)
     i2c_scl_hi();						// so no need for a delay here.
 
 	// 3. Delay, then do nothing, as described above.
+	//    (We're already plenty slow, so no need for any additional delays.) 
 //    _delay_us( i2cIntraBitDelayUs * 1);	// i2cIntraBitDelayUs=4 * 1 gives 8.2uS., so good. 
 	
 	// 4.
@@ -345,8 +341,13 @@ inline void SoftI2CMaster::i2c_writebit( uint8_t c)
 	// And with the current implementation, it is 5.8uS.
 	// For the moment, we'll see if the LSM303D can stomach that, and if not,
 	// we'll try to tighten up the i2c_write()->i2c_writebit() loop.
+
+	// Update: It turns out that the Compass seems to be happy with our current 
+	//		   (slooow) implementation, so leave everything as is for now.
 }
 
+/* May be needed in some form by the LSM303D library...
+ *
 uint8_t SoftI2CMaster::requestFrom( int address)
 {
     return requestFrom( (uint8_t)address);
@@ -372,7 +373,7 @@ uint8_t SoftI2CMaster::requestFrom( uint8_t address, uint8_t numberBytes)
 
   return (returnStatus) ? 0 : numberBytes;
 }
-/*
+
 // FIXME: this isn't right, surely
 uint8_t SoftI2CMaster::read( ackNotNackType ack)
 {
@@ -384,18 +385,20 @@ uint8_t SoftI2CMaster::read()
 {
     return i2c_read( i2c_ack);
 }
-*/
+
 uint8_t SoftI2CMaster::readLast()
 {
     return i2c_read( i2c_nak);
 }
-
+*/
 #define MR_DATA_ACK     0x50
 #define MR_DATA_NACK    0x58
 #define MAX_BUFFER_SIZE 32
 
 uint8_t data[MAX_BUFFER_SIZE];
 
+/* May be needed in some form by the LSM303D library...
+ *
 uint8_t SoftI2CMaster::read( uint8_t address, uint8_t numberBytes)
 {
   bytesAvailable = 0;
@@ -405,7 +408,8 @@ uint8_t SoftI2CMaster::read( uint8_t address, uint8_t numberBytes)
 	numberBytes++;  
 
   int returnStatus = 0;
-  /* returnStatus = */ i2c_start();
+  // returnStatus = 
+  i2c_start();
   
   if (returnStatus)
 	return returnStatus;
@@ -511,30 +515,8 @@ void SoftI2CMaster::write( int data)
 {
     write( (uint8_t)data);
 }
-
+*/
 //--------------------------------------------------------------------
-
-// read a byte from the I2C slave device
-// private:
-uint8_t SoftI2CMaster::i2c_read( ackNotNackType ack)
-{
-    uint8_t res = 0;
-
-    for (uint8_t i = 0 ; i < 8 ; i++) 
-	{
-        res <<= 1;
-        res |= i2c_readbit();  
-    }
-
-    if ( ack )
-        i2c_writebit( 0);
-    else
-        i2c_writebit( 1);
-
-    _delay_us( i2cbitdelay);
-
-    return res;
-}
 
 uint8_t SoftI2CMaster::available()
 {

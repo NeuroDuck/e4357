@@ -32,29 +32,12 @@ public:
   //
   uint8_t _bothHiDirMask;
   uint8_t _bothHiPortMask;
-  
-#define I2CSETTLINGTIME 0
+
 // From e4357\project\Compass\LSM303D-datasheet.pdf, Table 7, pg. 14,
 // twSCLL & twSCLH - 4-5 uS.
+//
 #define i2cIntraBitDelayUs 4
-/*
-  inline void i2c_both_hi() 
-  {
-	*_sclDirReg &= _bothHiDirMask;
 
-    if (_usePullups == i2c_internal_pullups)
-	  *_sdaPortOutReg |= _bothHiPortMask; 
-  }
-
-  uint8_t _bothLoPortMask;
-  uint8_t _bothLoDirMask;
-
-  inline void i2c_both_lo() 
-  {
-	*_sdaPortOutReg &= _bothLoPortMask;
-	*_sclDirReg     |= _bothLoDirMask;
-  }
-*/
   // Because of I2C's "Wired-OR" approach, a HIGH output is accomplished by alternating 
   // between these two states:
   // 	Pin is an Input, with its Pull-Up Resistor Enabled.
@@ -176,17 +159,7 @@ public:
 	i2c_sda_is_input();
 	i2c_sda_write_hi();						// Turn on the Pull-Up.
   }
-/*
-  inline void i2c_scl_release()
-  { *_sclDirReg &= _sclNotBitMask; }	// <== Clear bit == Input (no drive.)
-  inline void i2c_sda_release()
-  { *_sdaDirReg &= _sdaNotBitMask; }	// <== Clear bit == Input (no drive.)
 
-  inline void i2c_scl_grab()
-  { *_sclDirReg |= _sclBitMask; }		// <== Set   bit == Output.
-  inline void i2c_sda_grab()
-  { *_sdaDirReg |= _sdaBitMask; }		// <== Set   bit == Output.
-*/
 private:
   // per object data
   uint8_t _sclPin;
@@ -218,26 +191,18 @@ private:
   inline void i2c_stop(void);
   inline void i2c_repstart(void);
   inline void i2c_start(void);						// x.
-  inline uint8_t i2c_write( uint8_t c);				// 
+  inline ackNotNackType i2c_write( uint8_t c);		// 
   inline void i2c_writebit( uint8_t c);				// 
-  inline uint8_t i2c_readbit(void);
-  
-  uint8_t i2c_read( ackNotNackType ack);
-  
+  inline ackNotNackType i2c_readbit(void);
+   
   inline uint8_t shiftInReadNotWriteBit( 
 	uint8_t address, readBitNotWriteBitType readNotWrite);
 
   inline uint8_t setSubAdrAutoIncBit( 
 	uint8_t address, autoIncSubAdrBitType autoIncSubAdr);
 	
-  inline uint8_t i2c_writeSubAddress( 
-	uint8_t subAddress, autoIncSubAdrBitType autoIncSubAdr);
-
 public:
   // public methods
-  SoftI2CMaster();
-  SoftI2CMaster( uint8_t sclPin, uint8_t sdaPin);
-
   SoftI2CMaster( 
 	uint8_t sclPin, uint8_t sdaPin, 
 	internalNotExternalPullupsType usePullups, 
@@ -250,12 +215,20 @@ public:
 	sclIsPulledUpOrNotType sclIsPulledUpOrNot
   );
 
-  uint8_t beginTransmission( 
+  ackNotNackType beginTransmission(
 	uint8_t address, readBitNotWriteBitType readNotWrite = i2c_rw_bit_is_write);
+	
+  ackNotNackType i2c_writeSubAddress(
+	uint8_t subAddress, autoIncSubAdrBitType autoIncSubAdr);
+	
+  uint8_t i2c_read( ackNotNackType ack);
 
-  uint8_t endTransmission(void);
- 
+  void endTransmission(void);
+
   uint8_t write( uint8_t);
+
+/* May be needed in some form by the LSM303D library...
+ *
   void write( uint8_t*, uint8_t);
   void write( int);
   void write( char*);
@@ -263,11 +236,14 @@ public:
   uint8_t requestFrom( int address);
   uint8_t requestFrom( uint8_t address);
   uint8_t requestFrom( int address, int numberBytes);
+*/
   uint8_t requestFrom( uint8_t address, uint8_t numberBytes);
+
   uint8_t read( ackNotNackType ack);
   uint8_t read();
   uint8_t read( uint8_t address, uint8_t numberBytes);
   uint8_t readLast();
+
   uint8_t available();
 };
 

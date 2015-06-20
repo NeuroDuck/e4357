@@ -299,7 +299,7 @@ void LSM303D::writeAccReg( uint8_t reg, byte value)
   Wire.beginTransmission( acc_address);
   Wire.write( reg);
   Wire.write( value);
-  last_status = Wire.endTransmission();
+  last_status = 0; // Wire.endTransmission();
 }
 
 // Reads an accelerometer register
@@ -309,7 +309,7 @@ byte LSM303D::readAccReg( uint8_t reg)
 
   Wire.beginTransmission( acc_address);
   Wire.write( reg);
-  last_status = Wire.endTransmission();
+  last_status = 0; // Wire.endTransmission();
   Wire.requestFrom( acc_address, (byte)1);
   value = Wire.read();
   Wire.endTransmission();
@@ -323,7 +323,7 @@ void LSM303D::writeMagReg( uint8_t reg, byte value)
   Wire.beginTransmission( mag_address);
   Wire.write( reg);
   Wire.write( value);
-  last_status = Wire.endTransmission();
+  last_status = 0; // Wire.endTransmission();
 }
 
 // Reads a magnetometer register
@@ -339,7 +339,7 @@ byte LSM303D::readMagReg( uint8_t reg)
 
   Wire.beginTransmission( mag_address);
   Wire.write( reg);
-  last_status = Wire.endTransmission();
+  last_status = 0; // Wire.endTransmission();
   Wire.requestFrom( mag_address, (byte)1);
   value = Wire.read();
   Wire.endTransmission();
@@ -386,7 +386,7 @@ void LSM303D::readAcc(void)
   //
   Wire.write( OUT_X_L_A | (1 << 7));
 
-  last_status = Wire.endTransmission();
+  last_status = 0; // Wire.endTransmission();
 
   Wire.requestFrom( acc_address, (byte)6);
 
@@ -440,7 +440,7 @@ void LSM303D::readMag(void)
 		translated_regs[-OUT_X_L_M] | (1 << 7) : 
 		translated_regs[-OUT_X_H_M]);
 
-  last_status = Wire.endTransmission();
+  last_status = 0; // Wire.endTransmission();
 
   Wire.requestFrom(mag_address, (byte)6);
 
@@ -579,13 +579,13 @@ int LSM303D::testReg( uint8_t address, regAddr reg)
 //  Serial.print( "c: ");
 //  Serial.println( Wire.readLast());
 
-  Serial.print( "d: ");
-  Serial.println( Wire.endTransmission());
+//  Serial.print( "d: ");
+//  Serial.println( Wire.endTransmission());
 
 return 0;
   
 Serial.println( "c");
-  if (Wire.endTransmission() != 0)  // <== Do repeated start here.
+//  if (Wire.endTransmission() != 0)  // <== Do repeated start here.
   {					//	Add a sI2Cm wrapper around SoftI2CMaster::i2c_repstart()?
 Serial.println( "d");
     return TEST_REG_ERROR;		// What can cause this to happen?

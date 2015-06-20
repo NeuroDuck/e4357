@@ -6,94 +6,62 @@
 #include <UsefulFunctions.h>
 #include <SoftI2CMaster.h>
 
-// We do the setup in setup(), to allow i2cSM.setPins()'s debugging print
-// statements to print successfully.
+// When we need SoftI2CMaster's debugging print statements, we do the setup in 
+// setup()->i2cSM.setPins(), to allow i2cSM.setPins()'s debugging print statements 
+// happen after we've called Serial.begin().
 //
-SoftI2CMaster i2cSM;  
+SoftI2CMaster i2cSM(
+  SCLPIN_GREEN_PROBE, 
+  SDAPIN_BLUE_PROBE, 
+  SoftI2CMaster::i2c_internal_pullups,  // Trigger won't happen when SCL
+  SoftI2CMaster::i2c_scl_not_pulled_up  // is Pulled-Up.
+);
 
 #include <LSM303D.h>
-
 // LSM303D compassD;
 
 LSM303D::vector<int16_t> 
   running_min = { 32767,  32767,  32767}, 
   running_max = {-32768, -32768, -32768};
 
-// Read a single byte from address and return it as a byte.
-//
-/*
-byte readRegister(uint8_t address)
-{
-  byte data;
-
-//  i2cSM.beginTransmission( MMA8452_ADDRESS);
-  i2cSM.write( address);
-  i2cSM.endTransmission();
-
-//  i2cSM.requestFrom( MMA8452_ADDRESS);
-  data = i2cSM.readLast();
-  i2cSM.endTransmission();
-  
-  return data;
-}
-*/
 void setup()
 {
   Serial.begin( 57600);
-  Serial.println( "setup()");
+//  Serial.println( "setup()");
 
-  i2cSM.setPins( 
-    SCLPIN_GREEN_PROBE, 
-    SDAPIN_BLUE_PROBE, 
-    SoftI2CMaster::i2c_internal_pullups,  // Trigger won't happen when SCL
-    SoftI2CMaster::i2c_scl_not_pulled_up  // is Pulled-Up.
-  );
+  // Address the Compass, to let it know that we're querying it.
+  SoftI2CMaster::ackNotNackType ackBit1 =    // 0x1e
+    i2cSM.beginTransmission( LSM303D::D_SA0_LOW_ADDRESS);
 
-// From:
-// http://forum.arduino.cc/index.php?PHPSESSID=77d80gbsl7bdpl72j9gnq5lo65&topic=126021.msg947589#msg947589
-// "2) capacitance: In the 2nd block of code, the port is (presumed) 
-// high before it was turned into input."
-//
-// In other words, the short positive pulse I see after issuing
-// i2cSM.i2c_scl_hi(), may be due to that capacitance bleeding off.
+  // As per: "e4357\project\Compass\LSM303D-datasheet.pdf"'s Table 14, pg. 23:
+  // Read the value from the Compass's WHO_AM_I Register:  
+  // First clock out the WHO_AM_I SubAddress that we want to read from.
+  //
+  SoftI2CMaster::ackNotNackType ackBit2 = // 0x0f
+    i2cSM.i2c_writeSubAddress( LSM303D::WHO_AM_I, SoftI2CMaster::i2c_no_auto_inc_sub);
+
+  // Clock out a Repeated-Start to read the Compass's WHO_AM_I Register's value.
+  // Calling beginTransmission() a 2nd time before calling endTransmission()
+  // will clock out a Repeated-Start instead of a Start.
+  // Also, tell beginTransmission() that we're reading this time, instead of writing,
+  // which is its default action.
+  //
+  SoftI2CMaster::ackNotNackType ackBit3 = 
+    i2cSM.beginTransmission( 
+      LSM303D::D_SA0_LOW_ADDRESS,
+      SoftI2CMaster::i2c_rw_bit_is_read);
+      
+   uint8_t whoAmI = i2cSM.i2c_read( SoftI2CMaster::i2c_nak);
+
+   i2cSM.endTransmission();
+
+    delay( 5000);
+    printEnclosedHexData( "whoAmI", whoAmI);
 /*
-  while (1)
-  {
-    i2cSM.i2c_sda_lo();
-    _delay_us( i2cIntraBitDelayUs);
-    i2cSM.i2c_scl_lo();
-    _delay_us( 10);
-return;
-    i2cSM.i2c_scl_hi();
-    i2cSM.i2c_sda_hi();
-    _delay_us( 0);
-  }
+    printEnclosedBinData( "ackBit1", ackBit1);
+    printEnclosedBinData( "ackBit2", ackBit2);
+    printEnclosedBinData( "ackBit3", ackBit3);
 */
-    uint8_t ackBit =
-      i2cSM.beginTransmission( 
-//        0b1010101,
-        LSM303D::D_SA0_LOW_ADDRESS,
-        SoftI2CMaster::i2c_rw_bit_is_write);
-
-//    i2cSM.beginTransmission( 
-//        0b0101010, SoftI2CMaster::i2c_rw_bit_is_read);
-
-//    i2cSM.endTransmission();
-
-    printEnclosedBinData( "ackBit", ackBit);
-/*
-    i2cSM.i2c_scl_hi();
-    i2cSM.i2c_sda_hi();
-    _delay_us( 5);
-
-    i2cSM.i2c_scl_lo();
-    i2cSM.i2c_sda_lo();
-    _delay_us( 5);
-*/
-  
-//    i2cSM.i2c_both_hi();
-//    i2cSM.i2c_sda_hi();
-//    _delay_us( 5);
 
 //  compassD.init(); // LSM303D::device_D, LSM303D::sa0_high);
 //  compassD.enableDefault();
