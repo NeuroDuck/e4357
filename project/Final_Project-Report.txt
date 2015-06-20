@@ -1632,6 +1632,29 @@ which show correct ACK's and NACK's being received from the LSM303D Compass.
 
 I'll add more screenshots as I progress with reading actual data from it.
 
+Update:
+------
+
+I added a screenshot:
+
+	"e4357\project\Compass\5. Received WHO_AM_I=0x49 back from LSM303D.gif"
+	
+that shows a complete I2C conversation that requests and reads the contents
+of the LSM303D's WHO_AM_I Register, that shows the following:
+
+	0. Clock out a START condition (= "S").
+	1. Clock out the LSM303D's address: 0x1e,
+		followed by a WRITE(=0) bit.
+	2. Receive an ACK bit from the LSM303D.
+	3. Clock out the WHO_AM_I Register's sub-address: 0x0f.
+	4. Receive an ACK bit from the LSM303D.
+	5. Clock out a Repeated-Start condition (= "SR").
+	6. Clock out the LSM303D's address again (0x1e), 
+		this time followed by a READ(=1) bit.
+	7. Receive an ACK from the LSM303D.
+	8. Receive the LSM303D's response, which is the 1-byte contents
+	   of its WHO_AM_I Register (= 0x49).
+	8. Clock out STOP condition (= "SP").
 
 Results/Solutions:
 -----------------
