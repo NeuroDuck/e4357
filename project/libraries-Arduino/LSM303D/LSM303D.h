@@ -202,11 +202,21 @@ class LSM303D
     template <typename Ta, typename Tb, typename To> static void vector_cross(const vector<Ta> *a, const vector<Tb> *b, vector<To> *out);
     template <typename Ta, typename Tb> static float vector_dot(const vector<Ta> *a, const vector<Tb> *b);
     static void vector_normalize( vector<float> *a);
+	
+	inline uint8_t accAddress() 
+	{
+		return acc_address;
+	};
+	inline uint8_t magAddress() 
+	{ 
+		return mag_address;
+	};
 
   private:
     deviceType _device; // chip type (D, DLHC, DLM, or DLH)
     uint8_t acc_address;
     uint8_t mag_address;
+	
 
     static const int dummy_reg_count = 6;
     regAddr translated_regs[dummy_reg_count + 1]; // index 0 not used

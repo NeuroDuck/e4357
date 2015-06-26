@@ -17,9 +17,10 @@ class SoftI2CMaster
 public:
   enum readBitNotWriteBitType         {i2c_rw_bit_is_write  = 0, i2c_rw_bit_is_read   = 1};
   enum ackNotNackType                 {i2c_ack              = 0, i2c_nak              = 1};
-  enum autoIncSubAdrBitType           {i2c_no_auto_inc_sub  = 0, i2c_auto_inc_sub     = 1};
+  enum autoIncSubAdrBitType           {i2c_no_auto_inc_sub  = 0, i2c_auto_inc_sub     = 1 << 7};
   enum internalNotExternalPullupsType {i2c_external_pullups = 0, i2c_internal_pullups = 1};
   enum sclIsPulledUpOrNotType		  {i2c_scl_not_pulled_up = 0,   i2c_scl_pulled_up = 1};
+  enum numBytesToReadOrWriteType	  {i2c_read_or_write_1_byte = 1, i2c_read_or_write_6_bytes = 6};
   
   // set SDA high and to input (releases pin) (i.e. change to input,turnon pullup)
   //
@@ -185,23 +186,25 @@ private:
   bool transmittingInProgress;
   
   // private methods
-  // x = Checked in Logic Analyzer.
-  //
-  inline void i2c_init(void);						// x = 
-  inline void i2c_stop(void);
-  inline void i2c_repstart(void);
+													// x = Checked in Logic Analyzer.
+  inline void i2c_init(void);						// x.
+  inline void i2c_stop(void);						// x.
+  inline void i2c_repstart(void);					// x.
   inline void i2c_start(void);						// x.
-  inline ackNotNackType i2c_write( uint8_t c);		// 
-  inline void i2c_writebit( uint8_t c);				// 
-  inline ackNotNackType i2c_readbit(void);
-   
+  inline void i2c_writebit( uint8_t c);				// x.	
+  inline uint8_t i2c_read( ackNotNackType ack);		// x.
+  inline ackNotNackType i2c_readbit(void);			// x.
+
   inline uint8_t shiftInReadNotWriteBit( 
-	uint8_t address, readBitNotWriteBitType readNotWrite);
+	uint8_t address, readBitNotWriteBitType readNotWriteBit);
 
   inline uint8_t setSubAdrAutoIncBit( 
-	uint8_t address, autoIncSubAdrBitType autoIncSubAdr);
-	
+	uint8_t address, autoIncSubAdrBitType autoIncSubAdrBit);
+
 public:
+  ackNotNackType i2c_writeSubAddress(
+	uint8_t subAddress, autoIncSubAdrBitType autoIncSubAdrBit);
+	
   // public methods
   SoftI2CMaster( 
 	uint8_t sclPin, uint8_t sdaPin, 
@@ -217,15 +220,20 @@ public:
 
   ackNotNackType beginTransmission(
 	uint8_t address, readBitNotWriteBitType readNotWrite = i2c_rw_bit_is_write);
-	
-  ackNotNackType i2c_writeSubAddress(
-	uint8_t subAddress, autoIncSubAdrBitType autoIncSubAdr);
-	
-  uint8_t i2c_read( ackNotNackType ack);
+
+  uint8_t readBytesFrom( 
+	uint8_t address, uint8_t subAddress, numBytesToReadOrWriteType numBytesToRead, 
+	uint8_t* registerValues);
+
+  uint8_t writeBytesTo( 
+	uint8_t address, uint8_t subAddress, numBytesToReadOrWriteType numBytesToWrite, 
+	uint8_t* registerValues, uint8_t* ackBits);
+
+  ackNotNackType i2c_write( uint8_t c);		// x.
 
   void endTransmission(void);
 
-  uint8_t write( uint8_t);
+  uint8_t write( uint8_t) { }	// LSM303D library is temporarily using this.
 
 /* May be needed in some form by the LSM303D library...
  *
@@ -237,10 +245,10 @@ public:
   uint8_t requestFrom( uint8_t address);
   uint8_t requestFrom( int address, int numberBytes);
 */
-  uint8_t requestFrom( uint8_t address, uint8_t numberBytes);
+  uint8_t requestFrom( uint8_t address, uint8_t numberBytes) {}
 
   uint8_t read( ackNotNackType ack);
-  uint8_t read();
+  uint8_t read() {}
   uint8_t read( uint8_t address, uint8_t numberBytes);
   uint8_t readLast();
 

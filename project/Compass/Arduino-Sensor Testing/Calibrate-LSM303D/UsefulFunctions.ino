@@ -1,4 +1,5 @@
-//
+#include "SoftI2CMaster.h"
+
 // Functions that may be useful everywhere.
 //
 void printEnclosedData( char* desc, char* s)
@@ -23,6 +24,21 @@ void printEnclosedHexData( char const* desc, long l)
     Serial.print( " = >0x");
     Serial.print( l, HEX);
     Serial.println( "<");
+}
+
+void printEnclosedLSM303DHexRegister( char const* desc, uint8_t adr, uint8_t reg)
+{
+  uint8_t result;
+  uint8_t ackBits = 
+    i2cSM.readBytesFrom( 
+      adr, reg, SoftI2CMaster::i2c_read_or_write_1_byte, &result);
+/*
+  delay( 1000);
+  printEnclosedBinData( "\nackBit1", ackBits & 0x1); ackBits >>= 1;
+  printEnclosedBinData( "ackBit2", ackBits & 0x1); ackBits >>= 1;
+  printEnclosedBinData( "ackBit3", ackBits & 0x1); ackBits >>= 1;
+  printEnclosedHexData( desc, result);
+*/  
 }
 
 void printEnclosedInt8( char const* desc, uint8_t i8)

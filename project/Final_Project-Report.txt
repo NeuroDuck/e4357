@@ -1655,6 +1655,17 @@ of the LSM303D's WHO_AM_I Register, that shows the following:
 	8. Receive the LSM303D's response, which is the 1-byte contents
 	   of its WHO_AM_I Register (= 0x49).
 	8. Clock out STOP condition (= "SP").
+	
+Update:
+------
+
+Completed initial re-write of the Arduino SoftI2CMaster library, for use by the 
+LSM303D Compass library.
+
+Next I'll complete the re-write of the LSM303D Compass library to use this new 
+SoftI2CMaster library.  After that, I'll clean out from the latter all of the 
+now-unused functions, move functions back to being private: again, and change 
+as many of them back to being inline again as possible.
 
 Results/Solutions:
 -----------------

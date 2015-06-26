@@ -66,50 +66,37 @@ bool LSM303D::init( deviceType device, sa0State sa0)
   // perform auto-detection unless device type and SA0 state were both specified
   if (device == device_auto || sa0 == sa0_auto)
   {
-Serial.println( "2");
     // check for LSM303D if device is unidentified or was specified to be this type
     if (device == device_auto || device == device_D)
     {
-Serial.println( "3");
       // check SA0 high address unless SA0 was specified to be low.
 	  testReg( D_SA0_HIGH_ADDRESS, WHO_AM_I);
-	  return false;
 
       if (sa0 != sa0_low && testReg( D_SA0_HIGH_ADDRESS, WHO_AM_I) == D_WHO_ID)
       {
-Serial.println( "4");
         // device responds to address 0011101 with D ID; it's a D with SA0 high
         device = device_D;
         sa0 = sa0_high;
-Serial.println( "5");
       }
       // check SA0 low address unless SA0 was specified to be high
       else if (sa0 != sa0_high && testReg(D_SA0_LOW_ADDRESS, WHO_AM_I) == D_WHO_ID)
       {
-Serial.println( "6");
         // device responds to address 0011110 with D ID; it's a D with SA0 low
         device = device_D;
         sa0 = sa0_low;
-Serial.println( "7");
       }
-Serial.println( "8");
     }
-Serial.println( "9");
     
     // check for LSM303DLHC, DLM, DLH if device is still unidentified or was specified to be one of these types
     if (device == device_auto || device == device_DLHC || device == device_DLM || device == device_DLH)
     {
-Serial.println( "10");
       // check SA0 high address unless SA0 was specified to be low
       if (sa0 != sa0_low && testReg(DLHC_DLM_DLH_ACC_SA0_HIGH_ADDRESS, CTRL_REG1_A) != TEST_REG_ERROR)
       {
-Serial.println( "11");
         // device responds to address 0011001; it's a DLHC, DLM with SA0 high, or DLH with SA0 high
         sa0 = sa0_high;
-Serial.println( "12");
         if (device == device_auto)
         {
-Serial.println( "13");
           // use magnetometer WHO_AM_I register to determine device type
           //
           // DLHC seems to respond to WHO_AM_I request the same way as DLM, even though this
@@ -118,27 +105,20 @@ Serial.println( "13");
           // guess that a device whose accelerometer responds to the SA0 high address and whose
           // magnetometer gives the DLM ID is actually a DLHC.
           device = (testReg(DLHC_DLM_DLH_MAG_ADDRESS, WHO_AM_I_M) == DLM_WHO_ID) ? device_DLHC : device_DLH;
-Serial.println( "14");
         }
-Serial.println( "15");
       }
       // check SA0 low address unless SA0 was specified to be high
       else if (sa0 != sa0_high && testReg(DLM_DLH_ACC_SA0_LOW_ADDRESS, CTRL_REG1_A) != TEST_REG_ERROR)
       {
-Serial.println( "16");
         // device responds to address 0011000; it's a DLM with SA0 low or DLH with SA0 low
         sa0 = sa0_low;
-Serial.println( "17");
+		
         if (device == device_auto)
         {
-Serial.println( "18");
           // use magnetometer WHO_AM_I register to determine device type
           device = (testReg(DLHC_DLM_DLH_MAG_ADDRESS, WHO_AM_I_M) == DLM_WHO_ID) ? device_DLM : device_DLH;
-Serial.println( "19");
         }
-Serial.println( "20");
       }
-Serial.println( "21");
     }
 
     // make sure device and SA0 were successfully detected; otherwise, indicate failure
@@ -296,10 +276,16 @@ void LSM303D::enableDefault(void)
 // Writes an accelerometer register
 void LSM303D::writeAccReg( uint8_t reg, byte value)
 {
+  byte valueCopy = value;
+  uint8_t ackBits[10] = {11,12,13,14,15,16,17,18,19,20};
+  Wire.writeBytesTo( 
+	acc_address, reg, SoftI2CMaster::i2c_read_or_write_1_byte, &valueCopy, ackBits);
+/*
   Wire.beginTransmission( acc_address);
   Wire.write( reg);
   Wire.write( value);
   last_status = 0; // Wire.endTransmission();
+*/
 }
 
 // Reads an accelerometer register
@@ -320,10 +306,16 @@ byte LSM303D::readAccReg( uint8_t reg)
 // Writes a magnetometer register
 void LSM303D::writeMagReg( uint8_t reg, byte value)
 {
+  byte valueCopy = value;
+  uint8_t ackBits[10] = {11,12,13,14,15,16,17,18,19,20};
+  Wire.writeBytesTo( 
+	mag_address, reg, SoftI2CMaster::i2c_read_or_write_1_byte, &valueCopy, ackBits);
+/*
   Wire.beginTransmission( mag_address);
   Wire.write( reg);
   Wire.write( value);
   last_status = 0; // Wire.endTransmission();
+*/
 }
 
 // Reads a magnetometer register
@@ -544,65 +536,12 @@ void LSM303D::vector_normalize(vector<float> *a)
 
 // Private Methods //////////////////////////////////////////////////////////////
 
-uint8_t printAndReturnIfNAK( uint8_t ackResult, const char* msg)
+int LSM303D::testReg( uint8_t address, regAddr subAddr)
 {
-  if (msg != 0 && msg[0] != '\0')
-	Serial.print( msg);
+  uint8_t result = 0;
 
-  if (ackResult == SoftI2CMaster::i2c_ack)
-	Serial.println( "ACK received.");
-  else
-  {
-	Serial.println( "NACK received.");
-  }
-
-  return ackResult;
-}
-
-int LSM303D::testReg( uint8_t address, regAddr reg)
-{
-  Serial.print( "a: ");
-
-  uint8_t ackResult = Wire.beginTransmission( address);
-
-  if (printAndReturnIfNAK( ackResult, "a: ") == SoftI2CMaster::i2c_nak)
-	return ackResult;
-
-  Serial.println( "b: ");
-  
-// vvvv Uncomment me vvv.
-//  ackResult = Wire.i2c_writeSubAddress( reg, SoftI2CMaster::i2c_no_auto_inc_sub);
-
-  if (printAndReturnIfNAK( ackResult, "b: ") == SoftI2CMaster::i2c_nak)
-	return ackResult;  
-
-//  Serial.print( "c: ");
-//  Serial.println( Wire.readLast());
-
-//  Serial.print( "d: ");
-//  Serial.println( Wire.endTransmission());
-
-return 0;
-  
-Serial.println( "c");
-//  if (Wire.endTransmission() != 0)  // <== Do repeated start here.
-  {					//	Add a sI2Cm wrapper around SoftI2CMaster::i2c_repstart()?
-Serial.println( "d");
-    return TEST_REG_ERROR;		// What can cause this to happen?
-  }
-Serial.println( "e");
-
-  Wire.requestFrom( address, (byte)1);	//	<== Continue debugging from here.
-Serial.println( "f");
-
-  if (Wire.available())
-  {
-Serial.println( "g");
-    return Wire.read();
-  }
-  else
-  {
-Serial.println( "h");
-    return TEST_REG_ERROR;
-  }
+  uint8_t ackBits = 
+	Wire.readBytesFrom( address, subAddr, SoftI2CMaster::i2c_read_or_write_1_byte, &result);
+	  
+  return result;
 }

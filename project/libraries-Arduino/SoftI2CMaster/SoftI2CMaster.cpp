@@ -114,14 +114,6 @@ inline void SoftI2CMaster::i2c_init(void)
 	_delay_us( 6);		// Let both lines sit HIGH for ~10 uS. to stabilize.
 }
 
-void SoftI2CMaster::endTransmission(void)
-{
-    i2c_stop();
-    //return ret;  // FIXME
-	
-	transmittingInProgress = false;
-}
-
 // -------------------------
 // For STOP:
 // -------------------------
@@ -149,6 +141,14 @@ inline void SoftI2CMaster::i2c_stop(void)
 	// 3.
 	_delay_us( i2cIntraBitDelayUs);		// (=4), this takes 7.5uS., so it's ok for now.
 	i2c_sda_hi();
+}
+
+void SoftI2CMaster::endTransmission(void)
+{
+    i2c_stop();
+    //return ret;  // FIXME
+	
+	transmittingInProgress = false;
 }
 
 // -------------------------
@@ -188,6 +188,17 @@ inline void SoftI2CMaster::i2c_start(void)
     i2c_scl_lo();
 }
 
+inline uint8_t SoftI2CMaster::shiftInReadNotWriteBit( 
+	uint8_t address, readBitNotWriteBitType readNotWriteBit)
+{
+	uint8_t shiftedAddress = address << 1;
+
+	// = bitWrite( shiftedAddress, 0, readNotWrite);
+	uint8_t readNotWriteAddress = shiftedAddress | readNotWriteBit;
+
+	return readNotWriteAddress;
+}
+
 // Send:
 // 	ST, SAD+W (when called w/i2c_rw_bit_is_write)
 // Confirm receipt of:
@@ -197,7 +208,7 @@ inline void SoftI2CMaster::i2c_start(void)
 //	ackBitReturned = beginTransmission( address, SoftI2CMaster::i2c_rw_bit_is_write);
 //  if (ackBitReturned != i2c_ack) { print "NAK"; return; }
 //
-SoftI2CMaster::ackNotNackType SoftI2CMaster::beginTransmission( 
+inline SoftI2CMaster::ackNotNackType SoftI2CMaster::beginTransmission( 
 	uint8_t address, readBitNotWriteBitType readNotWrite)
 {
 	if (transmittingInProgress)
@@ -214,33 +225,29 @@ SoftI2CMaster::ackNotNackType SoftI2CMaster::beginTransmission(
     return i2c_write( readNotWriteAddress);
 }
 
-inline uint8_t SoftI2CMaster::shiftInReadNotWriteBit( 
-	uint8_t address, readBitNotWriteBitType readNotWrite)
-{
-	uint8_t shiftedAddress = address << 1;
-	uint8_t readNotWriteAddress = bitWrite( shiftedAddress, 0, readNotWrite);
-
-	return readNotWriteAddress;
-}
-
 SoftI2CMaster::ackNotNackType SoftI2CMaster::i2c_writeSubAddress( 
-	uint8_t subAddress, autoIncSubAdrBitType autoIncSubAdr)
+	uint8_t subAddress, autoIncSubAdrBitType autoIncSubAdrBit)
 {
 	uint8_t addressWithAutoIncSubAdrBit = 
-		setSubAdrAutoIncBit( subAddress, autoIncSubAdr);
+		setSubAdrAutoIncBit( subAddress, autoIncSubAdrBit);
 
 	return i2c_write( addressWithAutoIncSubAdrBit);
 }
 
 // private:
 inline uint8_t SoftI2CMaster::setSubAdrAutoIncBit( 
-	uint8_t address, autoIncSubAdrBitType autoIncSubAdr)
+	uint8_t address, autoIncSubAdrBitType autoIncSubAdrBit)
 {
-	uint8_t addressWithAutoIncSubAdrBit = bitWrite( address, 7, autoIncSubAdr);
+	// = bitWrite( address, 7, autoIncSubAdrBit);	// Hopefully address is only 7-bits. 
 
-	return addressWithAutoIncSubAdrBit;
+	if (autoIncSubAdrBit)
+		address |= autoIncSubAdrBit;
+
+	return address;
 }
 
+// This is working well without any delay()'s added.
+//
 // private:
 inline SoftI2CMaster::ackNotNackType SoftI2CMaster::i2c_readbit(void)
 {
@@ -259,8 +266,16 @@ inline SoftI2CMaster::ackNotNackType SoftI2CMaster::i2c_readbit(void)
     return (c & _sdaBitMask) ? i2c_nak : i2c_ack;
 }
 
+// -------------------------
+// To clock out a Master ACK bit after reading 8-bits off of SDA:
+// -------------------------
+// 1. delay, Drop  SDA.
+// 2. delay, Raise SCL.
+// 3. delay, Drop  SCL.
+// 4. delay, Raise SDA.
+//
 // private:
-uint8_t SoftI2CMaster::i2c_read( ackNotNackType ack)
+inline uint8_t SoftI2CMaster::i2c_read( ackNotNackType ack)
 {
     uint8_t res = 0;
 	
@@ -270,12 +285,82 @@ uint8_t SoftI2CMaster::i2c_read( ackNotNackType ack)
         res |= i2c_readbit();  
     }
 
-    if (ack)
+    if (ack == i2c_ack)					// Pull SDA LOW to ACK to the Sensor.
+	{
         i2c_sda_lo();
+		i2c_scl_hi();
+		i2c_scl_lo();
+		i2c_sda_hi();
+	}
     else
         i2c_sda_hi();
 
     return res;
+}
+
+uint8_t SoftI2CMaster::readBytesFrom( 
+	uint8_t address, uint8_t subAddress, numBytesToReadOrWriteType numBytesToRead, 
+	uint8_t* registerValues)
+{
+  // Address the Sensor, to let it know that we're querying it.
+  //
+  ackNotNackType ackBit1 = beginTransmission( address);
+  
+  // Let it know which of its Registers we want to read from, and whether we're only 
+  // after 1 byte or multiple bytes.
+  //  
+  autoIncSubAdrBitType autoIncBit = 
+	(numBytesToRead > 1) ? i2c_auto_inc_sub : i2c_no_auto_inc_sub;
+
+  ackNotNackType ackBit2 = i2c_writeSubAddress( subAddress, autoIncBit);
+
+  // Clock out a Repeated-Start to read the desired Register's value.
+  // Calling beginTransmission() a 2nd time before calling endTransmission()
+  // will clock out a Repeated-Start instead of a Start.
+  //
+  // Also, tell beginTransmission() that we're reading this time, instead of writing,
+  // which is its default action.
+  //
+  ackNotNackType ackBit3 = beginTransmission( address, i2c_rw_bit_is_read);
+  
+  // We've primed the Sensor to clock out its requested Register's value,
+  // so let's read in our Sensor's Register's value(s).
+  //
+  // Here we read all but the last byte from the Sensor.
+  //
+  // At present we're only reading either 1 or 6 bytes.
+  // After each read, change our pointer to read into the next destination byte.
+  //
+  // Theoretically, this switch() statement is better than a for() loop, as it 
+  // doesn't have the processing every time through the loop to slow things down.
+  //
+  switch (numBytesToRead)
+  {
+  case 6:
+	*(registerValues++) = i2c_read( i2c_ack);
+  case 5:
+	*(registerValues++) = i2c_read( i2c_ack);
+  case 4:
+	*(registerValues++) = i2c_read( i2c_ack);
+  case 3:
+	*(registerValues++) = i2c_read( i2c_ack);
+  case 2:
+	*(registerValues++) = i2c_read( i2c_ack);
+  default:										// Only reading 1 byte.
+	break;
+  }
+
+  // Now bat cleanup, and read the last (and possibly only) value from 
+  // the Sensor's Register(s).
+  //
+  *registerValues = i2c_read( i2c_nak);
+
+  // All done now, so clock out a STOP condition to return the I2C bus 
+  // to an Idle state.
+  //
+  endTransmission();
+
+  return (ackBit3 << 2 + ackBit2 << 1 + ackBit1);
 }
 
 // Write a byte to the I2C slave device.
@@ -284,7 +369,7 @@ uint8_t SoftI2CMaster::i2c_read( ackNotNackType ack)
 // coming here.
 //
 // private:
-inline SoftI2CMaster::ackNotNackType SoftI2CMaster::i2c_write( uint8_t c)
+SoftI2CMaster::ackNotNackType SoftI2CMaster::i2c_write( uint8_t c)
 {
     for (uint8_t i = 0 ; i < 8 ; i++)
 	{
@@ -295,6 +380,11 @@ inline SoftI2CMaster::ackNotNackType SoftI2CMaster::i2c_write( uint8_t c)
     return i2c_readbit();
 }
 
+// The following is all for a 16MHz clock, i.e., on an Arduino Fio.
+// 
+// Delays will have to be added for a faster-clocked MCU, hopefully with #defines,
+// such that they disappear when running on slow-clocked MCU's such as this one.
+//
 // We've identified i2cIntraBitDelayUs as the amount, prior to moving on to doing the 
 // next step.  Each "d" below represents a i2cIntraBitDelayUs period.
 //
@@ -344,6 +434,52 @@ inline void SoftI2CMaster::i2c_writebit( uint8_t c)
 
 	// Update: It turns out that the Compass seems to be happy with our current 
 	//		   (slooow) implementation, so leave everything as is for now.
+}
+
+uint8_t SoftI2CMaster::writeBytesTo(	
+	uint8_t address, uint8_t subAddress, numBytesToReadOrWriteType numBytesToWrite, 
+	uint8_t* registerValues, uint8_t* ackBits)
+{
+  uint8_t ackBitNdx = 0;
+  
+  // Address the Sensor, to let it know that we're writing to it.
+  //
+  ackBits[ackBitNdx++] = beginTransmission( address);
+  
+  // Let it know which of its Registers we want to read from, and whether we're only 
+  // after 1 byte or multiple bytes.
+  //  
+  autoIncSubAdrBitType autoIncBit = 
+	(numBytesToWrite > 1) ? i2c_auto_inc_sub : i2c_no_auto_inc_sub;
+
+  ackBits[ackBitNdx++] = i2c_writeSubAddress( subAddress, autoIncBit);
+
+  // Clock out the data bytes to store into the Compass's specified Register(s).
+  //
+  
+  switch (numBytesToWrite)
+  {
+  case 6:
+	ackBits[ackBitNdx++] = i2c_write( *(registerValues++));
+  case 5:
+	ackBits[ackBitNdx++] = i2c_write( *(registerValues++));
+  case 4:
+	ackBits[ackBitNdx++] = i2c_write( *(registerValues++));
+  case 3:
+	ackBits[ackBitNdx++] = i2c_write( *(registerValues++));
+  case 2:
+	ackBits[ackBitNdx++] = i2c_write( *(registerValues++));
+  default:													// Only writing 1 byte.
+	break;
+  }
+  ackBits[ackBitNdx++] = i2c_write( *(registerValues++));
+
+  // All done now, so clock out a STOP condition to return the I2C bus 
+  // to an Idle state.
+  //
+  endTransmission();
+  
+  return ackBitNdx;
 }
 
 /* May be needed in some form by the LSM303D library...
